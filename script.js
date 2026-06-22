@@ -22,7 +22,7 @@ let lastRenderedPlayers = [];
 let lastPing = null;
 
 /* =========================
-   HEAD SYSTEM (FIXED + CLEAN)
+   HEAD SYSTEM (ROBUSTO + SIN DEPENDENCIAS FRÁGILES)
 ========================= */
 
 const headCache = new Map();
@@ -32,7 +32,7 @@ function getHeadUrls(uuid) {
     `https://mc-heads.net/avatar/${uuid}/40`,
     `https://minotar.net/helm/${uuid}/40`,
     `https://visage.surgeplay.com/head/40/${uuid}`,
-    `assets/default-head.png`
+    `https://crafatar.com/renders/head/${uuid}?size=40&overlay`,
   ];
 }
 
@@ -42,9 +42,8 @@ function setHeadWithFallback(img, uuid, index = 0) {
     return;
   }
 
-  const cache = headCache.get(uuid);
-  if (cache) {
-    img.src = cache;
+  if (headCache.has(uuid)) {
+    img.src = headCache.get(uuid);
     return;
   }
 
@@ -57,19 +56,22 @@ function setHeadWithFallback(img, uuid, index = 0) {
 
   const url = urls[index];
 
-  img.onload = () => {
+  const tester = new Image();
+
+  tester.onload = () => {
     headCache.set(uuid, url);
+    img.src = url;
   };
 
-  img.onerror = () => {
+  tester.onerror = () => {
     setHeadWithFallback(img, uuid, index + 1);
   };
 
-  img.src = url;
+  tester.src = url;
 }
 
 /* =========================
-   FETCH
+   FETCH LOOP
 ========================= */
 
 async function fetchData() {
@@ -81,18 +83,22 @@ async function fetchData() {
     render(data);
 
   } catch (e) {
-    console.error(e);
+    console.error("Fetch error:", e);
     setOffline();
   }
 }
 
 /* =========================
-   RENDER
+   RENDER CORE
 ========================= */
 
 function render(data) {
   const server = data?.server;
-  if (!server) return setOffline();
+
+  if (!server) {
+    setOffline();
+    return;
+  }
 
   setOnline();
 
@@ -154,7 +160,9 @@ function renderPlayers(players) {
   const list = players.list ?? [];
 
   el.playersCount.textContent = `${online} / ${max}`;
-  el.playersBar.style.width = `${max ? (online / max) * 100 : 0}%`;
+
+  const percent = max > 0 ? (online / max) * 100 : 0;
+  el.playersBar.style.width = `${percent}%`;
 
   const names = list.map(p => p.name).join(",");
   if (names === lastRenderedPlayers.join(",")) return;
@@ -164,8 +172,10 @@ function renderPlayers(players) {
   el.playersList.replaceChildren();
 
   if (!list.length) {
-    el.playersList.innerHTML =
-      `<div class="empty">No hay jugadores conectados</div>`;
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "No hay jugadores conectados";
+    el.playersList.appendChild(empty);
     return;
   }
 
@@ -211,6 +221,7 @@ function renderPing(data) {
   if (ping == null) return;
 
   el.ping.textContent = `${ping} ms`;
+  lastPing = ping;
 }
 
 /* =========================
@@ -225,7 +236,7 @@ function renderGraph(history) {
 
   ctx.clearRect(0, 0, w, h);
 
-  if (!history?.length) return;
+  if (!history?.length || history.length < 2) return;
 
   const max = Math.max(...history);
   const min = Math.min(...history);
@@ -236,12 +247,22 @@ function renderGraph(history) {
     const x = (i / (history.length - 1)) * w;
     const y = h - ((v - min) / (max - min || 1)) * h;
 
-    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
   });
 
   ctx.strokeStyle = "#58A6FF";
   ctx.lineWidth = 2;
   ctx.stroke();
+}
+
+/* =========================
+   LAST UPDATE
+========================= */
+
+function renderLastUpdate(ts) {
+  if (!ts) return;
+  el.lastUpdate.textContent = new Date(ts).toLocaleTimeString();
 }
 
 /* =========================
