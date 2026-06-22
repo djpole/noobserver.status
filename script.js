@@ -22,45 +22,50 @@ let lastRenderedPlayers = [];
 let lastPing = null;
 
 /* =========================
-   HEAD SYSTEM (100% ROBUSTO)
+   HEAD SYSTEM (FIXED + CLEAN)
 ========================= */
 
 const headCache = new Map();
 
-const HEAD_PROVIDERS = [
-  (uuid) => `https://minotar.net/helm/${uuid}/40.png`,
-  (uuid) => `https://visage.surgeplay.com/head/40/${uuid}`,
-  (uuid) => `https://mc-heads.net/avatar/${uuid}/40`,
-  (uuid) => `https://crafatar.com/renders/head/${uuid}?size=40&overlay&default=MHF_Steve`
-];
-
-function testImage(url) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve(url);
-    img.onerror = () => resolve(null);
-    img.src = url;
-  });
+function getHeadUrls(uuid) {
+  return [
+    `https://mc-heads.net/avatar/${uuid}/40`,
+    `https://minotar.net/helm/${uuid}/40`,
+    `https://visage.surgeplay.com/head/40/${uuid}`,
+    `assets/default-head.png`
+  ];
 }
 
-async function resolveHead(uuid) {
-  if (!uuid) return "assets/default-head.png";
-
-  if (headCache.has(uuid)) {
-    return headCache.get(uuid);
+function setHeadWithFallback(img, uuid, index = 0) {
+  if (!uuid) {
+    img.src = "assets/default-head.png";
+    return;
   }
 
-  for (const build of HEAD_PROVIDERS) {
-    const url = build(uuid);
-    const ok = await testImage(url);
-
-    if (ok) {
-      headCache.set(uuid, ok);
-      return ok;
-    }
+  const cache = headCache.get(uuid);
+  if (cache) {
+    img.src = cache;
+    return;
   }
 
-  return "assets/default-head.png";
+  const urls = getHeadUrls(uuid);
+
+  if (index >= urls.length) {
+    img.src = "assets/default-head.png";
+    return;
+  }
+
+  const url = urls[index];
+
+  img.onload = () => {
+    headCache.set(uuid, url);
+  };
+
+  img.onerror = () => {
+    setHeadWithFallback(img, uuid, index + 1);
+  };
+
+  img.src = url;
 }
 
 /* =========================
@@ -141,52 +146,6 @@ function renderIcon(server) {
    PLAYERS
 ========================= */
 
-const headCache = new Map();
-
-function getHeadUrls(uuid) {
-  return [
-    // 1. Primary (mejor alternativa actual a Crafatar)
-    `https://mc-heads.net/avatar/${uuid}/40`,
-
-    // 2. Backup
-    `https://minotar.net/helm/${uuid}/40`,
-
-    // 3. Fallback seguro local
-    `assets/default-head.png`
-  ];
-}
-
-function setHeadWithFallback(img, uuid, index = 0) {
-  if (!uuid) {
-    img.src = "assets/default-head.png";
-    return;
-  }
-
-  if (headCache.has(uuid)) {
-    img.src = headCache.get(uuid);
-    return;
-  }
-
-  const urls = getHeadUrls(uuid);
-
-  if (index >= urls.length) {
-    img.src = "assets/default-head.png";
-    return;
-  }
-
-  const url = urls[index];
-
-  img.onerror = () => {
-    setHeadWithFallback(img, uuid, index + 1);
-  };
-
-  img.onload = () => {
-    headCache.set(uuid, url);
-  };
-
-  img.src = url;
-}
-
 function renderPlayers(players) {
   if (!players) return;
 
@@ -195,9 +154,7 @@ function renderPlayers(players) {
   const list = players.list ?? [];
 
   el.playersCount.textContent = `${online} / ${max}`;
-
-  const percent = max > 0 ? (online / max) * 100 : 0;
-  el.playersBar.style.width = `${percent}%`;
+  el.playersBar.style.width = `${max ? (online / max) * 100 : 0}%`;
 
   const names = list.map(p => p.name).join(",");
   if (names === lastRenderedPlayers.join(",")) return;
