@@ -1,8 +1,4 @@
-const CONFIG = {
-  endpoint: "https://domotica.djpole.es/noobserver",
-  refreshTime: 15000, // 15s UI refresh
-  pingHistorySize: 60
-};
+const CONFIG = NOOBSERVER_CONFIG;
 
 let state = {
   pingHistory: []
