@@ -31,7 +31,6 @@ async function fetchData() {
     if (!res.ok) throw new Error("HTTP error");
 
     const data = await res.json();
-
     render(data);
 
   } catch (e) {
@@ -97,7 +96,7 @@ function renderIcon(server) {
 }
 
 /* =========================
-   PLAYERS
+   PLAYERS (FIXED SKINS)
 ========================= */
 function renderPlayers(players) {
   const online = players.online ?? 0;
@@ -109,12 +108,11 @@ function renderPlayers(players) {
   const percent = (online / max) * 100;
   el.playersBar.style.width = `${percent}%`;
 
-  // evitar repaint si no cambia
-  const names = list.map(p => p.name).join(",");
+  const stateKey = list.map(p => p.uuid).join(",");
 
-  if (names === lastRenderedPlayers.join(",")) return;
+  if (stateKey === lastRenderedPlayers.join(",")) return;
 
-  lastRenderedPlayers = list.map(p => p.name);
+  lastRenderedPlayers = list.map(p => p.uuid);
 
   el.playersList.innerHTML = "";
 
@@ -127,17 +125,25 @@ function renderPlayers(players) {
     const uuid = p.uuid;
     const name = p.name;
 
-    const skin = uuid
-      ? `https://crafatar.com/avatars/${uuid}?size=40&overlay`
-      : "";
-
     const div = document.createElement("div");
     div.className = "player";
 
-    div.innerHTML = `
-      <img src="${skin}" alt="${name}">
-      <span>${name}</span>
-    `;
+    const img = document.createElement("img");
+
+    // FIX: UUID sin guiones + fallback seguro
+    img.src = uuid
+      ? `https://crafatar.com/avatars/${uuid.replaceAll("-", "")}?size=40&overlay=true`
+      : `https://mc-heads.net/avatar/${name}/40`;
+
+    img.onerror = () => {
+      img.src = `https://mc-heads.net/avatar/${name}/40`;
+    };
+
+    const label = document.createElement("span");
+    label.textContent = name;
+
+    div.appendChild(img);
+    div.appendChild(label);
 
     el.playersList.appendChild(div);
   });
@@ -165,10 +171,7 @@ function renderPing(data) {
   if (ping == null) return;
 
   el.ping.textContent = `${ping} ms`;
-
-  if (ping !== lastPing) {
-    lastPing = ping;
-  }
+  lastPing = ping;
 }
 
 /* =========================
@@ -208,7 +211,6 @@ function renderLastUpdate(ts) {
   if (!ts) return;
 
   const d = new Date(ts);
-
   el.lastUpdate.textContent = d.toLocaleTimeString();
 }
 
