@@ -16,13 +16,13 @@ const el = {
   canvas: document.getElementById("ping-chart")
 };
 
-const ctx = el.canvas.getContext("2d");
+const ctx = el.canvas?.getContext("2d");
 
 let lastRenderedPlayers = [];
 let lastPing = null;
 
 /* =========================
-   HEAD SYSTEM (ROBUSTO)
+   HEAD SYSTEM (100% ROBUSTO)
 ========================= */
 
 const headCache = new Map();
@@ -34,13 +34,13 @@ const HEAD_PROVIDERS = [
   (uuid) => `https://crafatar.com/renders/head/${uuid}?size=40&overlay&default=MHF_Steve`
 ];
 
-async function checkImage(url) {
-  try {
-    const res = await fetch(url, { method: "HEAD" });
-    return res.ok;
-  } catch {
-    return false;
-  }
+function testImage(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(url);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
 }
 
 async function resolveHead(uuid) {
@@ -50,13 +50,13 @@ async function resolveHead(uuid) {
     return headCache.get(uuid);
   }
 
-  for (const buildUrl of HEAD_PROVIDERS) {
-    const url = buildUrl(uuid);
+  for (const build of HEAD_PROVIDERS) {
+    const url = build(uuid);
+    const ok = await testImage(url);
 
-    const ok = await checkImage(url);
     if (ok) {
-      headCache.set(uuid, url);
-      return url;
+      headCache.set(uuid, ok);
+      return ok;
     }
   }
 
@@ -70,29 +70,24 @@ async function resolveHead(uuid) {
 async function fetchData() {
   try {
     const res = await fetch(CONFIG.endpoint, { cache: "no-store" });
-
     if (!res.ok) throw new Error("HTTP error");
 
     const data = await res.json();
     render(data);
 
-  } catch (err) {
-    console.error("Fetch error:", err);
+  } catch (e) {
+    console.error(e);
     setOffline();
   }
 }
 
 /* =========================
-   MAIN RENDER
+   RENDER
 ========================= */
 
 function render(data) {
   const server = data?.server;
-
-  if (!server) {
-    setOffline();
-    return;
-  }
+  if (!server) return setOffline();
 
   setOnline();
 
@@ -120,7 +115,7 @@ function setOffline() {
 
   el.playersCount.textContent = "0 / 20";
   el.playersBar.style.width = "0%";
-  el.playersList.innerHTML = "";
+  el.playersList.replaceChildren();
 }
 
 /* =========================
@@ -139,8 +134,7 @@ function renderVersion(server) {
 ========================= */
 
 function renderIcon(server) {
-  if (!server.icon) return;
-  el.icon.src = server.icon;
+  if (server.icon) el.icon.src = server.icon;
 }
 
 /* =========================
@@ -155,20 +149,17 @@ async function renderPlayers(players) {
   const list = players.list ?? [];
 
   el.playersCount.textContent = `${online} / ${max}`;
-
-  const percent = max > 0 ? (online / max) * 100 : 0;
-  el.playersBar.style.width = `${percent}%`;
+  el.playersBar.style.width = `${(online / max) * 100}%`;
 
   const names = list.map(p => p.name).join(",");
   if (names === lastRenderedPlayers.join(",")) return;
 
   lastRenderedPlayers = list.map(p => p.name);
 
-  el.playersList.innerHTML = "";
+  el.playersList.replaceChildren();
 
   if (!list.length) {
-    el.playersList.innerHTML =
-      `<div class="empty">No hay jugadores conectados</div>`;
+    el.playersList.innerHTML = `<div class="empty">No hay jugadores conectados</div>`;
     return;
   }
 
@@ -203,8 +194,8 @@ function renderMOTD(motd) {
   if (!motd) return;
 
   el.motd.innerHTML =
-    (motd.html?.join("<br>")) ||
-    (motd.clean?.join("<br>")) ||
+    motd.html?.join("<br>") ||
+    motd.clean?.join("<br>") ||
     "";
 }
 
@@ -217,7 +208,6 @@ function renderPing(data) {
   if (ping == null) return;
 
   el.ping.textContent = `${ping} ms`;
-  lastPing = ping;
 }
 
 /* =========================
@@ -225,39 +215,30 @@ function renderPing(data) {
 ========================= */
 
 function renderGraph(history) {
-  const canvas = el.canvas;
-  const width = canvas.width = canvas.offsetWidth;
-  const height = canvas.height = 70;
+  if (!ctx || !el.canvas) return;
 
-  ctx.clearRect(0, 0, width, height);
+  const w = el.canvas.width = el.canvas.offsetWidth;
+  const h = el.canvas.height = 70;
 
-  if (!history || history.length < 2) return;
+  ctx.clearRect(0, 0, w, h);
+
+  if (!history?.length) return;
 
   const max = Math.max(...history);
   const min = Math.min(...history);
 
   ctx.beginPath();
 
-  history.forEach((p, i) => {
-    const x = (i / (history.length - 1)) * width;
-    const y = height - ((p - min) / (max - min || 1)) * height;
+  history.forEach((v, i) => {
+    const x = (i / (history.length - 1)) * w;
+    const y = h - ((v - min) / (max - min || 1)) * h;
 
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   });
 
   ctx.strokeStyle = "#58A6FF";
   ctx.lineWidth = 2;
   ctx.stroke();
-}
-
-/* =========================
-   LAST UPDATE
-========================= */
-
-function renderLastUpdate(ts) {
-  if (!ts) return;
-  el.lastUpdate.textContent = new Date(ts).toLocaleTimeString();
 }
 
 /* =========================
