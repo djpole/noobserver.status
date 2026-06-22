@@ -22,56 +22,51 @@ let lastRenderedPlayers = [];
 let lastPing = null;
 
 /* =========================
-   CACHE HEADS
+   HEAD SYSTEM (ROBUSTO)
 ========================= */
+
 const headCache = new Map();
 
-/* =========================
-   HEAD PROVIDERS
-========================= */
-function getHeadUrls(uuid) {
-  return [
-    `https://crafatar.com/renders/head/${uuid}?size=40&overlay&default=MHF_Steve`,
-    `https://minotar.net/helm/${uuid}/40.png`,
-    `https://visage.surgeplay.com/head/40/${uuid}`,
-    `https://mc-heads.net/avatar/${uuid}/40`
-  ];
+const HEAD_PROVIDERS = [
+  (uuid) => `https://minotar.net/helm/${uuid}/40.png`,
+  (uuid) => `https://visage.surgeplay.com/head/40/${uuid}`,
+  (uuid) => `https://mc-heads.net/avatar/${uuid}/40`,
+  (uuid) => `https://crafatar.com/renders/head/${uuid}?size=40&overlay&default=MHF_Steve`
+];
+
+async function checkImage(url) {
+  try {
+    const res = await fetch(url, { method: "HEAD" });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
-function setHeadWithFallback(img, uuid, index = 0) {
-  if (!uuid) {
-    img.src = "assets/default-head.png";
-    return;
+async function resolveHead(uuid) {
+  if (!uuid) return "assets/default-head.png";
+
+  if (headCache.has(uuid)) {
+    return headCache.get(uuid);
   }
 
-  const cache = headCache.get(uuid);
-  if (cache) {
-    img.src = cache;
-    return;
+  for (const buildUrl of HEAD_PROVIDERS) {
+    const url = buildUrl(uuid);
+
+    const ok = await checkImage(url);
+    if (ok) {
+      headCache.set(uuid, url);
+      return url;
+    }
   }
 
-  const urls = getHeadUrls(uuid);
-
-  if (index >= urls.length) {
-    img.src = "assets/default-head.png";
-    return;
-  }
-
-  const url = urls[index];
-  img.src = url;
-
-  img.onerror = () => {
-    setHeadWithFallback(img, uuid, index + 1);
-  };
-
-  img.onload = () => {
-    headCache.set(uuid, url);
-  };
+  return "assets/default-head.png";
 }
 
 /* =========================
    FETCH
 ========================= */
+
 async function fetchData() {
   try {
     const res = await fetch(CONFIG.endpoint, { cache: "no-store" });
@@ -90,6 +85,7 @@ async function fetchData() {
 /* =========================
    MAIN RENDER
 ========================= */
+
 function render(data) {
   const server = data?.server;
 
@@ -112,6 +108,7 @@ function render(data) {
 /* =========================
    STATUS
 ========================= */
+
 function setOnline() {
   el.status.textContent = "ONLINE";
   el.status.className = "status online";
@@ -129,6 +126,7 @@ function setOffline() {
 /* =========================
    VERSION
 ========================= */
+
 function renderVersion(server) {
   el.version.textContent =
     server.protocol?.name ||
@@ -139,6 +137,7 @@ function renderVersion(server) {
 /* =========================
    ICON
 ========================= */
+
 function renderIcon(server) {
   if (!server.icon) return;
   el.icon.src = server.icon;
@@ -147,7 +146,8 @@ function renderIcon(server) {
 /* =========================
    PLAYERS
 ========================= */
-function renderPlayers(players) {
+
+async function renderPlayers(players) {
   if (!players) return;
 
   const online = players.online ?? 0;
@@ -166,38 +166,39 @@ function renderPlayers(players) {
 
   el.playersList.innerHTML = "";
 
-  if (list.length === 0) {
+  if (!list.length) {
     el.playersList.innerHTML =
       `<div class="empty">No hay jugadores conectados</div>`;
     return;
   }
 
-  list.slice(0, CONFIG.maxPlayers).forEach(p => {
-    const uuid = p.uuid;
-    const name = p.name;
-
+  for (const p of list.slice(0, CONFIG.maxPlayers)) {
     const div = document.createElement("div");
     div.className = "player";
 
     const img = document.createElement("img");
-    img.alt = name;
+    img.alt = p.name;
     img.loading = "lazy";
+    img.src = "assets/default-head.png";
 
-    setHeadWithFallback(img, uuid);
+    resolveHead(p.uuid).then(url => {
+      img.src = url;
+    });
 
     const span = document.createElement("span");
-    span.textContent = name;
+    span.textContent = p.name;
 
     div.appendChild(img);
     div.appendChild(span);
 
     el.playersList.appendChild(div);
-  });
+  }
 }
 
 /* =========================
    MOTD
 ========================= */
+
 function renderMOTD(motd) {
   if (!motd) return;
 
@@ -210,6 +211,7 @@ function renderMOTD(motd) {
 /* =========================
    PING
 ========================= */
+
 function renderPing(data) {
   const ping = data?.ping;
   if (ping == null) return;
@@ -221,6 +223,7 @@ function renderPing(data) {
 /* =========================
    GRAPH
 ========================= */
+
 function renderGraph(history) {
   const canvas = el.canvas;
   const width = canvas.width = canvas.offsetWidth;
@@ -251,6 +254,7 @@ function renderGraph(history) {
 /* =========================
    LAST UPDATE
 ========================= */
+
 function renderLastUpdate(ts) {
   if (!ts) return;
   el.lastUpdate.textContent = new Date(ts).toLocaleTimeString();
@@ -259,5 +263,6 @@ function renderLastUpdate(ts) {
 /* =========================
    LOOP
 ========================= */
+
 fetchData();
 setInterval(fetchData, CONFIG.refreshIntervalMs);
