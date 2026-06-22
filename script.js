@@ -141,7 +141,53 @@ function renderIcon(server) {
    PLAYERS
 ========================= */
 
-async function renderPlayers(players) {
+const headCache = new Map();
+
+function getHeadUrls(uuid) {
+  return [
+    // 1. Primary (mejor alternativa actual a Crafatar)
+    `https://mc-heads.net/avatar/${uuid}/40`,
+
+    // 2. Backup
+    `https://minotar.net/helm/${uuid}/40`,
+
+    // 3. Fallback seguro local
+    `assets/default-head.png`
+  ];
+}
+
+function setHeadWithFallback(img, uuid, index = 0) {
+  if (!uuid) {
+    img.src = "assets/default-head.png";
+    return;
+  }
+
+  if (headCache.has(uuid)) {
+    img.src = headCache.get(uuid);
+    return;
+  }
+
+  const urls = getHeadUrls(uuid);
+
+  if (index >= urls.length) {
+    img.src = "assets/default-head.png";
+    return;
+  }
+
+  const url = urls[index];
+
+  img.onerror = () => {
+    setHeadWithFallback(img, uuid, index + 1);
+  };
+
+  img.onload = () => {
+    headCache.set(uuid, url);
+  };
+
+  img.src = url;
+}
+
+function renderPlayers(players) {
   if (!players) return;
 
   const online = players.online ?? 0;
@@ -149,7 +195,9 @@ async function renderPlayers(players) {
   const list = players.list ?? [];
 
   el.playersCount.textContent = `${online} / ${max}`;
-  el.playersBar.style.width = `${(online / max) * 100}%`;
+
+  const percent = max > 0 ? (online / max) * 100 : 0;
+  el.playersBar.style.width = `${percent}%`;
 
   const names = list.map(p => p.name).join(",");
   if (names === lastRenderedPlayers.join(",")) return;
@@ -159,22 +207,20 @@ async function renderPlayers(players) {
   el.playersList.replaceChildren();
 
   if (!list.length) {
-    el.playersList.innerHTML = `<div class="empty">No hay jugadores conectados</div>`;
+    el.playersList.innerHTML =
+      `<div class="empty">No hay jugadores conectados</div>`;
     return;
   }
 
-  for (const p of list.slice(0, CONFIG.maxPlayers)) {
+  list.slice(0, CONFIG.maxPlayers).forEach(p => {
     const div = document.createElement("div");
     div.className = "player";
 
     const img = document.createElement("img");
     img.alt = p.name;
     img.loading = "lazy";
-    img.src = "assets/default-head.png";
 
-    resolveHead(p.uuid).then(url => {
-      img.src = url;
-    });
+    setHeadWithFallback(img, p.uuid);
 
     const span = document.createElement("span");
     span.textContent = p.name;
@@ -183,7 +229,7 @@ async function renderPlayers(players) {
     div.appendChild(span);
 
     el.playersList.appendChild(div);
-  }
+  });
 }
 
 /* =========================
