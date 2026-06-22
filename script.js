@@ -22,6 +22,54 @@ let lastRenderedPlayers = [];
 let lastPing = null;
 
 /* =========================
+   CACHE HEADS
+========================= */
+const headCache = new Map();
+
+/* =========================
+   HEAD PROVIDERS
+========================= */
+function getHeadUrls(uuid) {
+  return [
+    `https://crafatar.com/renders/head/${uuid}?size=40&overlay&default=MHF_Steve`,
+    `https://minotar.net/helm/${uuid}/40.png`,
+    `https://visage.surgeplay.com/head/40/${uuid}`,
+    `https://mc-heads.net/avatar/${uuid}/40`
+  ];
+}
+
+function setHeadWithFallback(img, uuid, index = 0) {
+  if (!uuid) {
+    img.src = "assets/default-head.png";
+    return;
+  }
+
+  const cache = headCache.get(uuid);
+  if (cache) {
+    img.src = cache;
+    return;
+  }
+
+  const urls = getHeadUrls(uuid);
+
+  if (index >= urls.length) {
+    img.src = "assets/default-head.png";
+    return;
+  }
+
+  const url = urls[index];
+  img.src = url;
+
+  img.onerror = () => {
+    setHeadWithFallback(img, uuid, index + 1);
+  };
+
+  img.onload = () => {
+    headCache.set(uuid, url);
+  };
+}
+
+/* =========================
    FETCH
 ========================= */
 async function fetchData() {
@@ -92,7 +140,8 @@ function renderVersion(server) {
    ICON
 ========================= */
 function renderIcon(server) {
-  if (server.icon) el.icon.src = server.icon;
+  if (!server.icon) return;
+  el.icon.src = server.icon;
 }
 
 /* =========================
@@ -106,7 +155,9 @@ function renderPlayers(players) {
   const list = players.list ?? [];
 
   el.playersCount.textContent = `${online} / ${max}`;
-  el.playersBar.style.width = `${max ? (online / max) * 100 : 0}%`;
+
+  const percent = max > 0 ? (online / max) * 100 : 0;
+  el.playersBar.style.width = `${percent}%`;
 
   const names = list.map(p => p.name).join(",");
   if (names === lastRenderedPlayers.join(",")) return;
@@ -115,8 +166,9 @@ function renderPlayers(players) {
 
   el.playersList.innerHTML = "";
 
-  if (!list.length) {
-    el.playersList.innerHTML = `<div class="empty">No hay jugadores conectados</div>`;
+  if (list.length === 0) {
+    el.playersList.innerHTML =
+      `<div class="empty">No hay jugadores conectados</div>`;
     return;
   }
 
@@ -131,25 +183,7 @@ function renderPlayers(players) {
     img.alt = name;
     img.loading = "lazy";
 
-    // 🔥 PIPELINE DE HEADS (multi-provider real)
-
-    const sources = [
-      `https://minotar.net/helm/${name}/40.png`,          // 1 - BEST
-      uuid ? `https://crafthead.net/avatar/${uuid}` : null, // 2
-      uuid ? `https://crafatar.com/avatars/${uuid}?size=40&overlay` : null, // 3 legacy
-      "assets/default-head.png"                             // 4 fallback
-    ].filter(Boolean);
-
-    let index = 0;
-
-    const tryNext = () => {
-      if (index >= sources.length) return;
-      img.src = sources[index++];
-    };
-
-    img.onerror = tryNext;
-
-    tryNext();
+    setHeadWithFallback(img, uuid);
 
     const span = document.createElement("span");
     span.textContent = name;
@@ -159,6 +193,59 @@ function renderPlayers(players) {
 
     el.playersList.appendChild(div);
   });
+}
+
+/* =========================
+   MOTD
+========================= */
+function renderMOTD(motd) {
+  if (!motd) return;
+
+  el.motd.innerHTML =
+    (motd.html?.join("<br>")) ||
+    (motd.clean?.join("<br>")) ||
+    "";
+}
+
+/* =========================
+   PING
+========================= */
+function renderPing(data) {
+  const ping = data?.ping;
+  if (ping == null) return;
+
+  el.ping.textContent = `${ping} ms`;
+  lastPing = ping;
+}
+
+/* =========================
+   GRAPH
+========================= */
+function renderGraph(history) {
+  const canvas = el.canvas;
+  const width = canvas.width = canvas.offsetWidth;
+  const height = canvas.height = 70;
+
+  ctx.clearRect(0, 0, width, height);
+
+  if (!history || history.length < 2) return;
+
+  const max = Math.max(...history);
+  const min = Math.min(...history);
+
+  ctx.beginPath();
+
+  history.forEach((p, i) => {
+    const x = (i / (history.length - 1)) * width;
+    const y = height - ((p - min) / (max - min || 1)) * height;
+
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+
+  ctx.strokeStyle = "#58A6FF";
+  ctx.lineWidth = 2;
+  ctx.stroke();
 }
 
 /* =========================
