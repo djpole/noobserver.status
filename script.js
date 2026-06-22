@@ -22,19 +22,21 @@ let lastRenderedPlayers = [];
 let lastPing = null;
 
 /* =========================
-   FETCH LOOP
+   FETCH
 ========================= */
 async function fetchData() {
   try {
-    const res = await fetch(CONFIG.endpoint, { cache: "no-store" });
+    const res = await fetch(CONFIG.endpoint, {
+      cache: "no-store"
+    });
 
     if (!res.ok) throw new Error("HTTP error");
 
     const data = await res.json();
     render(data);
 
-  } catch (e) {
-    console.error(e);
+  } catch (err) {
+    console.error("Fetch error:", err);
     setOffline();
   }
 }
@@ -43,14 +45,15 @@ async function fetchData() {
    MAIN RENDER
 ========================= */
 function render(data) {
-  const server = data.server;
+  const server = data?.server;
 
-  if (!server || !server.players) {
+  if (!server) {
     setOffline();
     return;
   }
 
-  setOnline(server);
+  setOnline();
+
   renderVersion(server);
   renderIcon(server);
   renderPlayers(server.players);
@@ -63,7 +66,7 @@ function render(data) {
 /* =========================
    STATUS
 ========================= */
-function setOnline(server) {
+function setOnline() {
   el.status.textContent = "ONLINE";
   el.status.className = "status online";
 }
@@ -74,6 +77,7 @@ function setOffline() {
 
   el.playersCount.textContent = "0 / 20";
   el.playersBar.style.width = "0%";
+  el.playersList.innerHTML = "";
 }
 
 /* =========================
@@ -90,34 +94,35 @@ function renderVersion(server) {
    ICON
 ========================= */
 function renderIcon(server) {
-  if (server.icon) {
-    el.icon.src = server.icon;
-  }
+  if (!server.icon) return;
+  el.icon.src = server.icon;
 }
 
 /* =========================
-   PLAYERS (FIXED SKINS)
+   PLAYERS (FIX HEADS)
 ========================= */
 function renderPlayers(players) {
+  if (!players) return;
+
   const online = players.online ?? 0;
   const max = players.max ?? 20;
   const list = players.list ?? [];
 
   el.playersCount.textContent = `${online} / ${max}`;
 
-  const percent = (online / max) * 100;
+  const percent = max > 0 ? (online / max) * 100 : 0;
   el.playersBar.style.width = `${percent}%`;
 
-  const stateKey = list.map(p => p.uuid).join(",");
+  const names = list.map(p => p.name).join(",");
+  if (names === lastRenderedPlayers.join(",")) return;
 
-  if (stateKey === lastRenderedPlayers.join(",")) return;
-
-  lastRenderedPlayers = list.map(p => p.uuid);
+  lastRenderedPlayers = list.map(p => p.name);
 
   el.playersList.innerHTML = "";
 
   if (list.length === 0) {
-    el.playersList.innerHTML = `<div class="empty">No hay jugadores conectados</div>`;
+    el.playersList.innerHTML =
+      `<div class="empty">No hay jugadores conectados</div>`;
     return;
   }
 
@@ -125,25 +130,29 @@ function renderPlayers(players) {
     const uuid = p.uuid;
     const name = p.name;
 
+    const isValidUUID = uuid && uuid.length > 10;
+
+    const skin = isValidUUID
+      ? `https://crafatar.com/renders/head/${uuid}?size=40&overlay&default=MHF_Steve`
+      : "assets/default-head.png";
+
     const div = document.createElement("div");
     div.className = "player";
 
     const img = document.createElement("img");
-
-    // FIX: UUID sin guiones + fallback seguro
-    img.src = uuid
-      ? `https://crafatar.com/avatars/${uuid.replaceAll("-", "")}?size=40&overlay=true`
-      : `https://mc-heads.net/avatar/${name}/40`;
+    img.src = skin;
+    img.alt = name;
+    img.loading = "lazy";
 
     img.onerror = () => {
-      img.src = `https://mc-heads.net/avatar/${name}/40`;
+      img.src = "assets/default-head.png";
     };
 
-    const label = document.createElement("span");
-    label.textContent = name;
+    const span = document.createElement("span");
+    span.textContent = name;
 
     div.appendChild(img);
-    div.appendChild(label);
+    div.appendChild(span);
 
     el.playersList.appendChild(div);
   });
@@ -155,19 +164,17 @@ function renderPlayers(players) {
 function renderMOTD(motd) {
   if (!motd) return;
 
-  if (motd.html?.length) {
-    el.motd.innerHTML = motd.html.join("<br>");
-  } else if (motd.clean?.length) {
-    el.motd.innerHTML = motd.clean.join("<br>");
-  }
+  el.motd.innerHTML =
+    (motd.html?.join("<br>")) ||
+    (motd.clean?.join("<br>")) ||
+    "";
 }
 
 /* =========================
    PING
 ========================= */
 function renderPing(data) {
-  const ping = data.ping;
-
+  const ping = data?.ping;
   if (ping == null) return;
 
   el.ping.textContent = `${ping} ms`;
@@ -195,8 +202,7 @@ function renderGraph(history) {
     const x = (i / (history.length - 1)) * width;
     const y = height - ((p - min) / (max - min || 1)) * height;
 
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   });
 
   ctx.strokeStyle = "#58A6FF";
@@ -209,9 +215,7 @@ function renderGraph(history) {
 ========================= */
 function renderLastUpdate(ts) {
   if (!ts) return;
-
-  const d = new Date(ts);
-  el.lastUpdate.textContent = d.toLocaleTimeString();
+  el.lastUpdate.textContent = new Date(ts).toLocaleTimeString();
 }
 
 /* =========================
