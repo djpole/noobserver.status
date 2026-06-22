@@ -96,7 +96,7 @@ function renderIcon(server) {
 }
 
 /* =========================
-   PLAYERS (HEAD FIX REAL)
+   PLAYERS
 ========================= */
 function renderPlayers(players) {
   if (!players) return;
@@ -106,9 +106,7 @@ function renderPlayers(players) {
   const list = players.list ?? [];
 
   el.playersCount.textContent = `${online} / ${max}`;
-
-  const percent = max > 0 ? (online / max) * 100 : 0;
-  el.playersBar.style.width = `${percent}%`;
+  el.playersBar.style.width = `${max ? (online / max) * 100 : 0}%`;
 
   const names = list.map(p => p.name).join(",");
   if (names === lastRenderedPlayers.join(",")) return;
@@ -118,8 +116,7 @@ function renderPlayers(players) {
   el.playersList.innerHTML = "";
 
   if (!list.length) {
-    el.playersList.innerHTML =
-      `<div class="empty">No hay jugadores conectados</div>`;
+    el.playersList.innerHTML = `<div class="empty">No hay jugadores conectados</div>`;
     return;
   }
 
@@ -134,22 +131,25 @@ function renderPlayers(players) {
     img.alt = name;
     img.loading = "lazy";
 
-    // 🔥 PRIORIDAD 1: username (MUCHO MÁS estable)
-    img.src = `https://mc-heads.net/avatar/${name}/40`;
+    // 🔥 PIPELINE DE HEADS (multi-provider real)
 
-    // 🔥 fallback 2: UUID si username falla
-    img.onerror = () => {
-      if (uuid) {
-        img.src = `https://crafthead.net/avatar/${uuid}`;
-      } else {
-        img.src = "assets/default-head.png";
-      }
+    const sources = [
+      `https://minotar.net/helm/${name}/40.png`,          // 1 - BEST
+      uuid ? `https://crafthead.net/avatar/${uuid}` : null, // 2
+      uuid ? `https://crafatar.com/avatars/${uuid}?size=40&overlay` : null, // 3 legacy
+      "assets/default-head.png"                             // 4 fallback
+    ].filter(Boolean);
 
-      // fallback final absoluto
-      img.onerror = () => {
-        img.src = "assets/default-head.png";
-      };
+    let index = 0;
+
+    const tryNext = () => {
+      if (index >= sources.length) return;
+      img.src = sources[index++];
     };
+
+    img.onerror = tryNext;
+
+    tryNext();
 
     const span = document.createElement("span");
     span.textContent = name;
@@ -159,58 +159,6 @@ function renderPlayers(players) {
 
     el.playersList.appendChild(div);
   });
-}
-
-/* =========================
-   MOTD
-========================= */
-function renderMOTD(motd) {
-  if (!motd) return;
-
-  el.motd.innerHTML =
-    (motd.html?.join("<br>")) ||
-    (motd.clean?.join("<br>")) ||
-    "";
-}
-
-/* =========================
-   PING
-========================= */
-function renderPing(data) {
-  const ping = data?.ping;
-  if (ping == null) return;
-
-  el.ping.textContent = `${ping} ms`;
-  lastPing = ping;
-}
-
-/* =========================
-   GRAPH
-========================= */
-function renderGraph(history) {
-  const canvas = el.canvas;
-  const width = canvas.width = canvas.offsetWidth;
-  const height = canvas.height = 70;
-
-  ctx.clearRect(0, 0, width, height);
-
-  if (!history || history.length < 2) return;
-
-  const max = Math.max(...history);
-  const min = Math.min(...history);
-
-  ctx.beginPath();
-
-  history.forEach((p, i) => {
-    const x = (i / (history.length - 1)) * width;
-    const y = height - ((p - min) / (max - min || 1)) * height;
-
-    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-  });
-
-  ctx.strokeStyle = "#58A6FF";
-  ctx.lineWidth = 2;
-  ctx.stroke();
 }
 
 /* =========================
