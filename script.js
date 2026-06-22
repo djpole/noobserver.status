@@ -26,9 +26,7 @@ let lastPing = null;
 ========================= */
 async function fetchData() {
   try {
-    const res = await fetch(CONFIG.endpoint, {
-      cache: "no-store"
-    });
+    const res = await fetch(CONFIG.endpoint, { cache: "no-store" });
 
     if (!res.ok) throw new Error("HTTP error");
 
@@ -94,12 +92,11 @@ function renderVersion(server) {
    ICON
 ========================= */
 function renderIcon(server) {
-  if (!server.icon) return;
-  el.icon.src = server.icon;
+  if (server.icon) el.icon.src = server.icon;
 }
 
 /* =========================
-   PLAYERS (FIX HEADS)
+   PLAYERS (HEAD FIX REAL)
 ========================= */
 function renderPlayers(players) {
   if (!players) return;
@@ -120,7 +117,7 @@ function renderPlayers(players) {
 
   el.playersList.innerHTML = "";
 
-  if (list.length === 0) {
+  if (!list.length) {
     el.playersList.innerHTML =
       `<div class="empty">No hay jugadores conectados</div>`;
     return;
@@ -130,22 +127,28 @@ function renderPlayers(players) {
     const uuid = p.uuid;
     const name = p.name;
 
-    const isValidUUID = uuid && uuid.length > 10;
-
-    const skin = isValidUUID
-      ? `https://crafatar.com/renders/head/${uuid}?size=40&overlay&default=MHF_Steve`
-      : "assets/default-head.png";
-
     const div = document.createElement("div");
     div.className = "player";
 
     const img = document.createElement("img");
-    img.src = skin;
     img.alt = name;
     img.loading = "lazy";
 
+    // 🔥 PRIORIDAD 1: username (MUCHO MÁS estable)
+    img.src = `https://mc-heads.net/avatar/${name}/40`;
+
+    // 🔥 fallback 2: UUID si username falla
     img.onerror = () => {
-      img.src = "assets/default-head.png";
+      if (uuid) {
+        img.src = `https://crafthead.net/avatar/${uuid}`;
+      } else {
+        img.src = "assets/default-head.png";
+      }
+
+      // fallback final absoluto
+      img.onerror = () => {
+        img.src = "assets/default-head.png";
+      };
     };
 
     const span = document.createElement("span");
