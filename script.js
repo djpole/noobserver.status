@@ -11,8 +11,6 @@ const el = {
 
   motd: document.getElementById("motd"),
   ping: document.getElementById("ping-value"),
-  pingStatus: document.getElementById("ping-status"),
-  pingArrow: document.getElementById("ping-arrow"),
 
   lastUpdate: document.getElementById("last-update"),
   canvas: document.getElementById("ping-chart")
@@ -35,20 +33,24 @@ async function fetchData() {
     render(data);
 
   } catch (e) {
-    console.error(e);
+    console.error("Fetch error:", e);
     setOffline();
   }
 }
 
 /* =========================
-   RENDER
+   RENDER ROOT
 ========================= */
 
 function render(data) {
-  const server = data.server;
-  if (!server) return setOffline();
+  const server = data?.server;
 
-  setOnline();
+  if (!server) {
+    setOffline();
+    return;
+  }
+
+  setOnline(server);
 
   renderVersion(server);
   renderIcon(server);
@@ -63,7 +65,7 @@ function render(data) {
    STATUS
 ========================= */
 
-function setOnline() {
+function setOnline(server) {
   el.status.textContent = "ONLINE";
   el.status.className = "status online";
 }
@@ -74,14 +76,11 @@ function setOffline() {
 
   el.playersCount.textContent = "0 / 20";
   el.playersBar.style.width = "0%";
-  el.playersList.replaceChildren();
-
-  el.pingStatus.textContent = "Sin datos";
-  el.pingArrow.style.left = "0%";
+  el.playersList.innerHTML = `<div class="empty">Sin jugadores conectados</div>`;
 }
 
 /* =========================
-   VERSION + ICON
+   VERSION
 ========================= */
 
 function renderVersion(server) {
@@ -91,38 +90,57 @@ function renderVersion(server) {
     "Unknown";
 }
 
+/* =========================
+   ICON
+========================= */
+
 function renderIcon(server) {
-  if (server.icon) el.icon.src = server.icon;
+  if (server.icon) {
+    el.icon.src = server.icon;
+  }
 }
 
 /* =========================
-   PLAYERS
+   PLAYERS (ESTABLE + SIN ROMPER UI)
 ========================= */
 
 function renderPlayers(players) {
+  if (!players) return;
+
   const online = players.online ?? 0;
   const max = players.max ?? 20;
   const list = players.list ?? [];
 
   el.playersCount.textContent = `${online} / ${max}`;
 
-  const percent = (online / max) * 100;
+  const percent = max > 0 ? (online / max) * 100 : 0;
   el.playersBar.style.width = `${percent}%`;
 
-  if (!list.length) {
-    el.playersList.innerHTML = `<div class="empty">Sin jugadores</div>`;
+  const names = list.map(p => p.name_raw || p.name || "").join(",");
+  if (names === lastRenderedPlayers.join(",")) return;
+
+  lastRenderedPlayers = list.map(p => p.name_raw || p.name || "");
+
+  el.playersList.innerHTML = "";
+
+  if (list.length === 0) {
+    el.playersList.innerHTML =
+      `<div class="empty">Sin jugadores conectados</div>`;
     return;
   }
 
-  el.playersList.replaceChildren();
-
-  list.forEach(p => {
+  list.slice(0, CONFIG.maxPlayers).forEach(p => {
     const div = document.createElement("div");
     div.className = "player";
 
     const img = document.createElement("img");
-    img.src = `https://mc-heads.net/avatar/${p.uuid}/40`;
-    img.alt = p.name_raw || p.name;
+
+    const uuid = p.uuid;
+    img.src = uuid
+      ? `https://mc-heads.net/avatar/${uuid}/40`
+      : "assets/default-head.png";
+
+    img.alt = p.name_raw || p.name || "player";
 
     const span = document.createElement("span");
     span.textContent = p.name_raw || p.name;
@@ -135,30 +153,36 @@ function renderPlayers(players) {
 }
 
 /* =========================
-   PING + SEMÁFORO
+   MOTD (ROBUSTO)
 ========================= */
 
-function getPingStatus(ping) {
-  if (ping <= 30) return "Excelente";
-  if (ping <= 60) return "Bueno";
-  if (ping <= 100) return "Aceptable";
-  if (ping <= 150) return "Pobre";
-  if (ping <= 250) return "Malo";
-  return "Injugable";
+function renderMOTD(motd) {
+  if (!motd) return;
+
+  if (Array.isArray(motd.html)) {
+    el.motd.innerHTML = motd.html.join("<br>");
+  } else if (Array.isArray(motd.clean)) {
+    el.motd.innerHTML = motd.clean.join("<br>");
+  } else if (typeof motd.raw === "string") {
+    el.motd.textContent = motd.raw;
+  } else {
+    el.motd.textContent = "";
+  }
 }
 
+/* =========================
+   PING
+========================= */
+
 function renderPing(data) {
-  const ping = data.ping;
-  if (ping == null) return;
+  const ping = data?.ping;
+
+  if (ping == null) {
+    el.ping.textContent = "-- ms";
+    return;
+  }
 
   el.ping.textContent = `${ping} ms`;
-
-  const status = getPingStatus(ping);
-  el.pingStatus.textContent = status;
-
-  // mapa 0-300ms → 0-100%
-  let percent = Math.min((ping / 300) * 100, 100);
-  el.pingArrow.style.left = `${percent}%`;
 }
 
 /* =========================
@@ -173,7 +197,7 @@ function renderGraph(history) {
 
   ctx.clearRect(0, 0, w, h);
 
-  if (!history.length) return;
+  if (!history || history.length < 2) return;
 
   const max = Math.max(...history);
   const min = Math.min(...history);
@@ -197,7 +221,11 @@ function renderGraph(history) {
 ========================= */
 
 function renderLastUpdate(ts) {
-  if (!ts) return;
+  if (!ts) {
+    el.lastUpdate.textContent = "--";
+    return;
+  }
+
   el.lastUpdate.textContent = new Date(ts).toLocaleTimeString();
 }
 
