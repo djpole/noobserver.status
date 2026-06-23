@@ -1,112 +1,48 @@
-body {
-  margin: 0;
-  font-family: Inter, sans-serif;
-  background: #0d1117;
-  color: #fff;
-}
-
-.container {
-  max-width: 900px;
-  margin: auto;
-  padding: 20px;
-}
-
-/* HEADER */
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.logo {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-#server-icon {
-  width: 48px;
-  height: 48px;
-}
-
-/* STATUS */
-.status.online { color: #3fb950; }
-.status.offline { color: #f85149; }
-
-/* CARDS */
-.card {
-  background: #161b22;
-  padding: 16px;
-  border-radius: 10px;
-  margin-top: 15px;
-}
-
-/* PLAYERS FIX (IMPORTANTE) */
-.players-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
 .player {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  background: #0d1117;
-  border-radius: 8px;
-  width: auto;   /* 🔥 clave */
+  gap: 10px;
+  transition: transform 0.15s ease;
 }
 
-.player img {
-  width: 32px;
-  height: 32px;
+.player:hover {
+  transform: scale(1.05);
 }
 
-/* PING */
-.ping-value {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 6px;
-}
-
-.ping-status {
+#ping-state {
   font-size: 12px;
-  opacity: 0.7;
+  margin-top: 4px;
+  font-weight: 600;
 }
 
-/* BARRA SEMÁFORO */
 .ping-bar {
   position: relative;
-  height: 10px;
+  height: 8px;
+  width: 100%;
+  margin-top: 10px;
   border-radius: 6px;
-  overflow: hidden;
-  display: flex;
-  margin-bottom: 10px;
+  background: linear-gradient(
+    to right,
+    #2ecc71 0%,
+    #27ae60 20%,
+    #f1c40f 40%,
+    #f39c12 60%,
+    #e74c3c 80%,
+    #2c3e50 100%
+  );
 }
 
-/* segmentos */
-.ping-seg { flex: 1; }
-
-.green { background: #2ecc71; }
-.lime { background: #a3e635; }
-.yellow { background: #facc15; }
-.orange { background: #fb923c; }
-.red { background: #ef4444; }
-.black { background: #111827; }
-
-/* flecha */
-.ping-arrow {
+#ping-arrow {
   position: absolute;
-  top: -12px;
+  top: -10px;
+  left: 0%;
   transform: translateX(-50%);
-  font-size: 14px;
   color: white;
   transition: left 0.3s ease;
 }
 
-/* canvas */
-canvas {
-  width: 100%;
-  height: 70px;
+footer {
+  text-align: center;
+  font-size: 12px;
+  color: #8b949e;
 }
