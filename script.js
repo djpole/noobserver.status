@@ -22,7 +22,7 @@ let lastRenderedPlayers = [];
 let lastPing = null;
 
 /* =========================
-   HEAD SYSTEM (ROBUSTO + SIN DEPENDENCIAS FRÁGILES)
+   HEAD SYSTEM (SIN CAMBIOS FUNCIONALES)
 ========================= */
 
 const headCache = new Map();
@@ -71,7 +71,7 @@ function setHeadWithFallback(img, uuid, index = 0) {
 }
 
 /* =========================
-   FETCH LOOP
+   FETCH
 ========================= */
 
 async function fetchData() {
@@ -130,13 +130,13 @@ function setOffline() {
 }
 
 /* =========================
-   VERSION
+   VERSION (NUEVA API)
 ========================= */
 
 function renderVersion(server) {
   el.version.textContent =
-    server.protocol?.name ||
-    server.version ||
+    server.version?.name_clean ||
+    server.version?.name_raw ||
     "Unknown";
 }
 
@@ -145,11 +145,13 @@ function renderVersion(server) {
 ========================= */
 
 function renderIcon(server) {
-  if (server.icon) el.icon.src = server.icon;
+  if (server.icon) {
+    el.icon.src = server.icon;
+  }
 }
 
 /* =========================
-   PLAYERS
+   PLAYERS (ADAPTADO NUEVA API)
 ========================= */
 
 function renderPlayers(players) {
@@ -164,10 +166,10 @@ function renderPlayers(players) {
   const percent = max > 0 ? (online / max) * 100 : 0;
   el.playersBar.style.width = `${percent}%`;
 
-  const names = list.map(p => p.name).join(",");
+  const names = list.map(p => p.name_clean || p.name_raw || p.name).join(",");
   if (names === lastRenderedPlayers.join(",")) return;
 
-  lastRenderedPlayers = list.map(p => p.name);
+  lastRenderedPlayers = list.map(p => p.name_clean || p.name_raw || p.name);
 
   el.playersList.replaceChildren();
 
@@ -184,13 +186,13 @@ function renderPlayers(players) {
     div.className = "player";
 
     const img = document.createElement("img");
-    img.alt = p.name;
+    img.alt = p.name_clean || p.name_raw || "player";
     img.loading = "lazy";
 
     setHeadWithFallback(img, p.uuid);
 
     const span = document.createElement("span");
-    span.textContent = p.name;
+    span.textContent = p.name_clean || p.name_raw || "unknown";
 
     div.appendChild(img);
     div.appendChild(span);
@@ -200,16 +202,30 @@ function renderPlayers(players) {
 }
 
 /* =========================
-   MOTD
+   MOTD (NUEVA API STRING HTML)
 ========================= */
 
 function renderMOTD(motd) {
   if (!motd) return;
 
-  el.motd.innerHTML =
-    motd.html?.join("<br>") ||
-    motd.clean?.join("<br>") ||
-    "";
+  if (typeof motd.html === "string") {
+    el.motd.innerHTML = motd.html;
+    return;
+  }
+
+  if (Array.isArray(motd.html)) {
+    el.motd.innerHTML = motd.html.join("<br>");
+    return;
+  }
+
+  if (typeof motd.clean === "string") {
+    el.motd.textContent = motd.clean;
+    return;
+  }
+
+  if (Array.isArray(motd.clean)) {
+    el.motd.innerHTML = motd.clean.join("<br>");
+  }
 }
 
 /* =========================
@@ -236,7 +252,7 @@ function renderGraph(history) {
 
   ctx.clearRect(0, 0, w, h);
 
-  if (!history?.length || history.length < 2) return;
+  if (!history || history.length < 2) return;
 
   const max = Math.max(...history);
   const min = Math.min(...history);
