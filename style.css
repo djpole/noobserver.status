@@ -1,63 +1,112 @@
 body {
-  background:#0d1117;
-  color:#e6edf3;
-  font-family:Inter;
+  margin: 0;
+  font-family: Inter, sans-serif;
+  background: #0d1117;
+  color: #fff;
 }
 
-.container { max-width:1100px; margin:auto; padding:20px; }
+.container {
+  max-width: 900px;
+  margin: auto;
+  padding: 20px;
+}
 
-.header { display:flex; justify-content:space-between; margin-bottom:20px; }
+/* HEADER */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
-.logo { display:flex; gap:10px; align-items:center; }
+.logo {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
 
-.status.online { background:#238636; padding:5px 10px; border-radius:6px; }
-.status.offline { background:#da3633; padding:5px 10px; border-radius:6px; }
+#server-icon {
+  width: 48px;
+  height: 48px;
+}
 
+/* STATUS */
+.status.online { color: #3fb950; }
+.status.offline { color: #f85149; }
+
+/* CARDS */
 .card {
-  background:#161b22;
-  padding:15px;
-  border-radius:10px;
-  margin-bottom:10px;
-  border:1px solid #30363d;
+  background: #161b22;
+  padding: 16px;
+  border-radius: 10px;
+  margin-top: 15px;
 }
 
-/* ================= PING BAR ================= */
+/* PLAYERS FIX (IMPORTANTE) */
+.players-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
 
-.ping-wrapper { margin-top:10px; }
+.player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #0d1117;
+  border-radius: 8px;
+  width: auto;   /* 🔥 clave */
+}
 
+.player img {
+  width: 32px;
+  height: 32px;
+}
+
+/* PING */
+.ping-value {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.ping-status {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* BARRA SEMÁFORO */
 .ping-bar {
-  position:relative;
-  display:flex;
-  width:100%;
-  height:14px;
-  border-radius:10px;
-  overflow:hidden;
-  border:1px solid #30363d;
+  position: relative;
+  height: 10px;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  margin-bottom: 10px;
 }
 
-.seg { flex:1; height:100%; }
+/* segmentos */
+.ping-seg { flex: 1; }
 
-.seg-excellent { background:#2ea043; }
-.seg-good      { background:#238636; }
-.seg-ok        { background:#d29922; }
-.seg-bad       { background:#e38c29; }
-.seg-poor      { background:#da3633; }
-.seg-dead      { background:#6e7681; }
+.green { background: #2ecc71; }
+.lime { background: #a3e635; }
+.yellow { background: #facc15; }
+.orange { background: #fb923c; }
+.red { background: #ef4444; }
+.black { background: #111827; }
 
-.ping-indicator {
-  position:absolute;
-  top:-6px;
-  width:0;
-  height:0;
-  border-left:6px solid transparent;
-  border-right:6px solid transparent;
-  border-top:10px solid white;
-  transform:translateX(-50%);
-  left:0%;
+/* flecha */
+.ping-arrow {
+  position: absolute;
+  top: -12px;
+  transform: translateX(-50%);
+  font-size: 14px;
+  color: white;
+  transition: left 0.3s ease;
 }
 
-.ping-state {
-  font-size:12px;
-  margin-top:5px;
-  opacity:0.8;
+/* canvas */
+canvas {
+  width: 100%;
+  height: 70px;
 }
