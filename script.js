@@ -18,7 +18,7 @@ const el = {
 
 const ctx = el.canvas?.getContext("2d");
 
-let lastRenderedPlayers = [];
+let lastPlayersHash = "";
 
 /* =========================
    FETCH
@@ -27,9 +27,11 @@ let lastRenderedPlayers = [];
 async function fetchData() {
   try {
     const res = await fetch(CONFIG.endpoint, { cache: "no-store" });
+
     if (!res.ok) throw new Error("HTTP error");
 
     const data = await res.json();
+
     render(data);
 
   } catch (e) {
@@ -45,7 +47,8 @@ async function fetchData() {
 function render(data) {
   const server = data?.server;
 
-  if (!server) {
+  // 🔴 SOLO OFFLINE si NO existe server o no está online
+  if (!server || server.online === false) {
     setOffline();
     return;
   }
@@ -76,7 +79,7 @@ function setOffline() {
 
   el.playersCount.textContent = "0 / 20";
   el.playersBar.style.width = "0%";
-  el.playersList.innerHTML = `<div class="empty">Sin jugadores conectados</div>`;
+  el.playersList.innerHTML = "";
 }
 
 /* =========================
@@ -101,7 +104,7 @@ function renderIcon(server) {
 }
 
 /* =========================
-   PLAYERS (ESTABLE + SIN ROMPER UI)
+   PLAYERS (API ADAPTADA)
 ========================= */
 
 function renderPlayers(players) {
@@ -113,13 +116,8 @@ function renderPlayers(players) {
 
   el.playersCount.textContent = `${online} / ${max}`;
 
-  const percent = max > 0 ? (online / max) * 100 : 0;
+  const percent = max ? (online / max) * 100 : 0;
   el.playersBar.style.width = `${percent}%`;
-
-  const names = list.map(p => p.name_raw || p.name || "").join(",");
-  if (names === lastRenderedPlayers.join(",")) return;
-
-  lastRenderedPlayers = list.map(p => p.name_raw || p.name || "");
 
   el.playersList.innerHTML = "";
 
@@ -129,7 +127,7 @@ function renderPlayers(players) {
     return;
   }
 
-  list.slice(0, CONFIG.maxPlayers).forEach(p => {
+  list.forEach(p => {
     const div = document.createElement("div");
     div.className = "player";
 
@@ -140,10 +138,10 @@ function renderPlayers(players) {
       ? `https://mc-heads.net/avatar/${uuid}/40`
       : "assets/default-head.png";
 
-    img.alt = p.name_raw || p.name || "player";
+    img.alt = p.name_clean || p.name_raw || "player";
 
     const span = document.createElement("span");
-    span.textContent = p.name_raw || p.name;
+    span.textContent = p.name_clean || p.name_raw || "Unknown";
 
     div.appendChild(img);
     div.appendChild(span);
@@ -153,7 +151,7 @@ function renderPlayers(players) {
 }
 
 /* =========================
-   MOTD (ROBUSTO)
+   MOTD (API NUEVA)
 ========================= */
 
 function renderMOTD(motd) {
@@ -165,13 +163,11 @@ function renderMOTD(motd) {
     el.motd.innerHTML = motd.clean.join("<br>");
   } else if (typeof motd.raw === "string") {
     el.motd.textContent = motd.raw;
-  } else {
-    el.motd.textContent = "";
   }
 }
 
 /* =========================
-   PING
+   PING (NO ROMPER UI)
 ========================= */
 
 function renderPing(data) {
@@ -186,7 +182,7 @@ function renderPing(data) {
 }
 
 /* =========================
-   GRAPH
+   GRAPH (ESTABLE)
 ========================= */
 
 function renderGraph(history) {
