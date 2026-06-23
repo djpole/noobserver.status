@@ -12,6 +12,9 @@ const el = {
   motd: document.getElementById("motd"),
   ping: document.getElementById("ping-value"),
 
+  pingIndicator: document.getElementById("ping-indicator"),
+  pingState: document.getElementById("ping-state"),
+
   lastUpdate: document.getElementById("last-update"),
   canvas: document.getElementById("ping-chart")
 };
@@ -106,7 +109,8 @@ function render(data) {
   renderIcon(server);
   renderPlayers(server.players);
   renderMOTD(server.motd);
-  renderPing(data);
+  renderPing(data.ping);
+  renderPingBar(data.ping);
   renderLastUpdate(data.lastUpdate);
   renderGraph(data.pingHistory || []);
 }
@@ -128,11 +132,7 @@ function setOffline() {
   el.playersBar.style.width = "0%";
   el.playersList.replaceChildren();
 
-  const arrow = document.querySelector(".ping-arrow");
-  const statusText = document.getElementById("ping-status-text");
-
-  if (arrow) arrow.style.left = "0%";
-  if (statusText) statusText.textContent = "--";
+  renderPingBar(null);
 }
 
 /* =========================
@@ -141,9 +141,8 @@ function setOffline() {
 
 function renderVersion(server) {
   el.version.textContent =
-    server?.version?.name_clean ||
-    server?.version?.name_raw ||
-    server?.version ||
+    server.protocol?.name ||
+    server.version ||
     "Unknown";
 }
 
@@ -152,7 +151,7 @@ function renderVersion(server) {
 ========================= */
 
 function renderIcon(server) {
-  if (server?.icon) el.icon.src = server.icon;
+  if (server.icon) el.icon.src = server.icon;
 }
 
 /* =========================
@@ -171,11 +170,6 @@ function renderPlayers(players) {
   const percent = max > 0 ? (online / max) * 100 : 0;
   el.playersBar.style.width = `${percent}%`;
 
-  const names = list.map(p => p.name_raw || p.name || "").join(",");
-  if (names === lastRenderedPlayers.join(",")) return;
-
-  lastRenderedPlayers = list.map(p => p.name_raw || p.name || "");
-
   el.playersList.replaceChildren();
 
   if (!list.length) {
@@ -191,13 +185,12 @@ function renderPlayers(players) {
     div.className = "player";
 
     const img = document.createElement("img");
-    img.alt = p.name_raw || p.name;
-    img.loading = "lazy";
+    img.alt = p.name;
 
     setHeadWithFallback(img, p.uuid);
 
     const span = document.createElement("span");
-    span.textContent = p.name_raw || p.name;
+    span.textContent = p.name;
 
     div.appendChild(img);
     div.appendChild(span);
@@ -213,87 +206,70 @@ function renderPlayers(players) {
 function renderMOTD(motd) {
   if (!motd) return;
 
-  const html =
-    typeof motd.html === "string"
-      ? motd.html
-      : Array.isArray(motd.html)
-        ? motd.html.join("<br>")
-        : "";
-
-  const clean =
-    typeof motd.clean === "string"
-      ? motd.clean
-      : Array.isArray(motd.clean)
-        ? motd.clean.join("<br>")
-        : "";
-
-  el.motd.innerHTML = html || clean || "";
+  el.motd.innerHTML =
+    motd.html?.join("<br>") ||
+    motd.clean?.join("<br>") ||
+    "";
 }
 
 /* =========================
-   PING SYSTEM (NUEVO)
+   PING TEXT
 ========================= */
 
-function getPingStatus(ping) {
-  if (ping <= 30) return "Excelente";
-  if (ping <= 60) return "Bueno";
-  if (ping <= 100) return "Aceptable";
-  if (ping <= 150) return "Pobre";
-  if (ping <= 250) return "Malo";
-  return "Injugable";
-}
-
-function getPingPercent(ping) {
-  const max = 300;
-  return Math.min((ping / max) * 100, 100);
-}
-
-function getPingColor(ping) {
-  if (ping <= 30) return "#2ecc71";
-  if (ping <= 60) return "#27ae60";
-  if (ping <= 100) return "#f1c40f";
-  if (ping <= 150) return "#f39c12";
-  if (ping <= 250) return "#e74c3c";
-  return "#2c2c2c";
-}
-
-function renderPing(data) {
-  const ping = data?.ping;
+function renderPing(ping) {
   if (ping == null) return;
-
   el.ping.textContent = `${ping} ms`;
   lastPing = ping;
+}
 
-  const percent = getPingPercent(ping);
-  const status = getPingStatus(ping);
-  const color = getPingColor(ping);
+/* =========================
+   PING BAR + ESTADOS
+========================= */
 
-  const arrow = document.querySelector(".ping-arrow");
-  const statusText = document.getElementById("ping-status-text");
-  const bar = document.querySelector(".ping-bar");
+function renderPingBar(ping) {
+  const bar = el.pingIndicator;
+  const state = el.pingState;
 
-  if (arrow) {
-    arrow.style.left = `${percent}%`;
+  if (!bar || !state) return;
+
+  if (ping == null) {
+    bar.style.left = "0%";
+    state.textContent = "Sin datos";
+    return;
   }
 
-  if (statusText) {
-    statusText.textContent = status;
-    statusText.style.color = color;
+  // clamp 0–300
+  const capped = Math.min(ping, 300);
+
+  // posicion proporcional
+  const percent = (capped / 300) * 100;
+  bar.style.left = `${percent}%`;
+
+  let label = "";
+  let color = "";
+
+  if (ping <= 30) {
+    label = "Excelente";
+    color = "#2ea043";
+  } else if (ping <= 60) {
+    label = "Bueno";
+    color = "#238636";
+  } else if (ping <= 100) {
+    label = "Aceptable";
+    color = "#d29922";
+  } else if (ping <= 150) {
+    label = "Pobre";
+    color = "#e38c29";
+  } else if (ping <= 250) {
+    label = "Malo";
+    color = "#da3633";
+  } else {
+    label = "Injugable";
+    color = "#6e7681";
   }
 
-  if (bar) {
-    bar.style.background = `
-      linear-gradient(to right,
-        #2ecc71 0%,
-        #2ecc71 10%,
-        #27ae60 20%,
-        #f1c40f 40%,
-        #f39c12 55%,
-        #e74c3c 80%,
-        #2c2c2c 100%
-      )
-    `;
-  }
+  state.textContent = `${label} (${ping} ms)`;
+  state.style.color = color;
 }
 
 /* =========================
