@@ -18,7 +18,56 @@ const el = {
 
 const ctx = el.canvas?.getContext("2d");
 
-let lastPlayersHash = "";
+let lastRenderedPlayers = [];
+let lastPing = null;
+
+/* =========================
+   HEAD SYSTEM (NO TOCAR)
+========================= */
+
+const headCache = new Map();
+
+function getHeadUrls(uuid) {
+  return [
+    `https://mc-heads.net/avatar/${uuid}/40`,
+    `https://minotar.net/helm/${uuid}/40`,
+    `https://visage.surgeplay.com/head/40/${uuid}`
+  ];
+}
+
+function setHeadWithFallback(img, uuid, index = 0) {
+  if (!uuid) {
+    img.src = "assets/default-head.png";
+    return;
+  }
+
+  if (headCache.has(uuid)) {
+    img.src = headCache.get(uuid);
+    return;
+  }
+
+  const urls = getHeadUrls(uuid);
+
+  if (index >= urls.length) {
+    img.src = "assets/default-head.png";
+    return;
+  }
+
+  const url = urls[index];
+
+  const tester = new Image();
+
+  tester.onload = () => {
+    headCache.set(uuid, url);
+    img.src = url;
+  };
+
+  tester.onerror = () => {
+    setHeadWithFallback(img, uuid, index + 1);
+  };
+
+  tester.src = url;
+}
 
 /* =========================
    FETCH
@@ -27,11 +76,9 @@ let lastPlayersHash = "";
 async function fetchData() {
   try {
     const res = await fetch(CONFIG.endpoint, { cache: "no-store" });
-
     if (!res.ok) throw new Error("HTTP error");
 
     const data = await res.json();
-
     render(data);
 
   } catch (e) {
@@ -41,18 +88,16 @@ async function fetchData() {
 }
 
 /* =========================
-   RENDER ROOT
+   RENDER CORE
 ========================= */
 
 function render(data) {
-  const server = data?.server;
+  if (!data) return setOffline();
 
-  // 🔴 SOLO OFFLINE si NO existe server o no está online
-  if (!server || server.online === false) {
-    setOffline();
-    return;
-  }
+  const server = data.server;
+  if (!server) return setOffline();
 
+  // ONLINE SI O SI si API responde
   setOnline(server);
 
   renderVersion(server);
@@ -69,17 +114,17 @@ function render(data) {
 ========================= */
 
 function setOnline(server) {
-  el.status.textContent = "ONLINE";
-  el.status.className = "status online";
+  el.status.textContent = server?.online ? "ONLINE" : "OFFLINE";
+  el.status.className = server?.online ? "status online" : "status offline";
 }
 
 function setOffline() {
   el.status.textContent = "OFFLINE";
   el.status.className = "status offline";
 
-  el.playersCount.textContent = "0 / 20";
+  el.playersCount.textContent = "0 / 0";
   el.playersBar.style.width = "0%";
-  el.playersList.innerHTML = "";
+  el.playersList.replaceChildren();
 }
 
 /* =========================
@@ -87,10 +132,12 @@ function setOffline() {
 ========================= */
 
 function renderVersion(server) {
-  el.version.textContent =
-    server.version?.name_clean ||
-    server.version?.name_raw ||
+  const v =
+    server?.version?.name_clean ||
+    server?.version?.name_raw ||
     "Unknown";
+
+  el.version.textContent = v;
 }
 
 /* =========================
@@ -98,20 +145,18 @@ function renderVersion(server) {
 ========================= */
 
 function renderIcon(server) {
-  if (server.icon) {
-    el.icon.src = server.icon;
-  }
+  if (server?.icon) el.icon.src = server.icon;
 }
 
 /* =========================
-   PLAYERS (API ADAPTADA)
+   PLAYERS
 ========================= */
 
 function renderPlayers(players) {
   if (!players) return;
 
   const online = players.online ?? 0;
-  const max = players.max ?? 20;
+  const max = players.max ?? 0;
   const list = players.list ?? [];
 
   el.playersCount.textContent = `${online} / ${max}`;
@@ -119,11 +164,18 @@ function renderPlayers(players) {
   const percent = max ? (online / max) * 100 : 0;
   el.playersBar.style.width = `${percent}%`;
 
-  el.playersList.innerHTML = "";
+  const names = list.map(p => p.name).join(",");
+  if (names === lastRenderedPlayers.join(",")) return;
 
-  if (list.length === 0) {
-    el.playersList.innerHTML =
-      `<div class="empty">Sin jugadores conectados</div>`;
+  lastRenderedPlayers = list.map(p => p.name);
+
+  el.playersList.replaceChildren();
+
+  if (!list.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "No hay jugadores conectados";
+    el.playersList.appendChild(empty);
     return;
   }
 
@@ -132,16 +184,13 @@ function renderPlayers(players) {
     div.className = "player";
 
     const img = document.createElement("img");
+    img.alt = p.name;
+    img.loading = "lazy";
 
-    const uuid = p.uuid;
-    img.src = uuid
-      ? `https://mc-heads.net/avatar/${uuid}/40`
-      : "assets/default-head.png";
-
-    img.alt = p.name_clean || p.name_raw || "player";
+    setHeadWithFallback(img, p.uuid);
 
     const span = document.createElement("span");
-    span.textContent = p.name_clean || p.name_raw || "Unknown";
+    span.textContent = p.name;
 
     div.appendChild(img);
     div.appendChild(span);
@@ -151,38 +200,32 @@ function renderPlayers(players) {
 }
 
 /* =========================
-   MOTD (API NUEVA)
+   MOTD
 ========================= */
 
 function renderMOTD(motd) {
   if (!motd) return;
 
-  if (Array.isArray(motd.html)) {
-    el.motd.innerHTML = motd.html.join("<br>");
-  } else if (Array.isArray(motd.clean)) {
-    el.motd.innerHTML = motd.clean.join("<br>");
-  } else if (typeof motd.raw === "string") {
-    el.motd.textContent = motd.raw;
-  }
+  el.motd.innerHTML =
+    (Array.isArray(motd.html) ? motd.html.join("<br>") : "") ||
+    (Array.isArray(motd.clean) ? motd.clean.join("<br>") : "") ||
+    (typeof motd.raw === "string" ? motd.raw : "");
 }
 
 /* =========================
-   PING (NO ROMPER UI)
+   PING
 ========================= */
 
 function renderPing(data) {
   const ping = data?.ping;
-
-  if (ping == null) {
-    el.ping.textContent = "-- ms";
-    return;
-  }
+  if (ping == null) return;
 
   el.ping.textContent = `${ping} ms`;
+  lastPing = ping;
 }
 
 /* =========================
-   GRAPH (ESTABLE)
+   GRAPH
 ========================= */
 
 function renderGraph(history) {
@@ -193,7 +236,7 @@ function renderGraph(history) {
 
   ctx.clearRect(0, 0, w, h);
 
-  if (!history || history.length < 2) return;
+  if (!Array.isArray(history) || history.length < 2) return;
 
   const max = Math.max(...history);
   const min = Math.min(...history);
@@ -217,11 +260,7 @@ function renderGraph(history) {
 ========================= */
 
 function renderLastUpdate(ts) {
-  if (!ts) {
-    el.lastUpdate.textContent = "--";
-    return;
-  }
-
+  if (!ts) return;
   el.lastUpdate.textContent = new Date(ts).toLocaleTimeString();
 }
 
