@@ -47,10 +47,21 @@
       </div>
 
       <div class="card">
-        <div class="label">Ping</div>
-        <div class="value" id="ping-value">-- ms</div>
-        <canvas id="ping-chart"></canvas>
-      </div>
+  <div class="label">Ping</div>
+
+  <div class="value" id="ping-value">-- ms</div>
+
+  <!-- NUEVA BARRA DE ESTADO -->
+  <div class="ping-container">
+    <div class="ping-bar"></div>
+    <div class="ping-arrow">▲</div>
+  </div>
+
+  <div id="ping-status-text" class="ping-status-text"></div>
+
+  <!-- mantenemos gráfica -->
+  <canvas id="ping-chart"></canvas>
+</div>
 
     </section>
 
