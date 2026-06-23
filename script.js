@@ -16,13 +16,21 @@ const el = {
   canvas: document.getElementById("ping-chart")
 };
 
-const ctx = el.canvas?.getContext("2d");
-
+let ctx = null;
 let lastRenderedPlayers = [];
 let lastPing = null;
 
 /* =========================
-   HEAD SYSTEM (SIN CAMBIOS FUNCIONALES)
+   INIT CANVAS (SAFE)
+========================= */
+function initCanvas() {
+  if (!el.canvas) return;
+  ctx = el.canvas.getContext("2d");
+}
+initCanvas();
+
+/* =========================
+   HEAD SYSTEM (SIN CAMBIOS)
 ========================= */
 
 const headCache = new Map();
@@ -83,7 +91,7 @@ async function fetchData() {
     render(data);
 
   } catch (e) {
-    console.error("Fetch error:", e);
+    console.error(e);
     setOffline();
   }
 }
@@ -108,7 +116,7 @@ function render(data) {
   renderMOTD(server.motd);
   renderPing(data);
   renderLastUpdate(data.lastUpdate);
-  renderGraph(data.pingHistory || []);
+  renderGraph(data.pingHistory);
 }
 
 /* =========================
@@ -130,13 +138,13 @@ function setOffline() {
 }
 
 /* =========================
-   VERSION (NUEVA API)
+   VERSION
 ========================= */
 
 function renderVersion(server) {
   el.version.textContent =
-    server.version?.name_clean ||
-    server.version?.name_raw ||
+    server?.version?.name_clean ||
+    server?.version?.name_raw ||
     "Unknown";
 }
 
@@ -145,13 +153,13 @@ function renderVersion(server) {
 ========================= */
 
 function renderIcon(server) {
-  if (server.icon) {
+  if (server?.icon) {
     el.icon.src = server.icon;
   }
 }
 
 /* =========================
-   PLAYERS (ADAPTADO NUEVA API)
+   PLAYERS
 ========================= */
 
 function renderPlayers(players) {
@@ -163,13 +171,13 @@ function renderPlayers(players) {
 
   el.playersCount.textContent = `${online} / ${max}`;
 
-  const percent = max > 0 ? (online / max) * 100 : 0;
+  const percent = max ? (online / max) * 100 : 0;
   el.playersBar.style.width = `${percent}%`;
 
-  const names = list.map(p => p.name_clean || p.name_raw || p.name).join(",");
+  const names = list.map(p => p.name_clean || p.name_raw).join(",");
   if (names === lastRenderedPlayers.join(",")) return;
 
-  lastRenderedPlayers = list.map(p => p.name_clean || p.name_raw || p.name);
+  lastRenderedPlayers = list.map(p => p.name_clean || p.name_raw);
 
   el.playersList.replaceChildren();
 
@@ -186,46 +194,31 @@ function renderPlayers(players) {
     div.className = "player";
 
     const img = document.createElement("img");
-    img.alt = p.name_clean || p.name_raw || "player";
+    img.alt = p.name_clean || p.name_raw;
     img.loading = "lazy";
 
     setHeadWithFallback(img, p.uuid);
 
     const span = document.createElement("span");
-    span.textContent = p.name_clean || p.name_raw || "unknown";
+    span.textContent = p.name_clean || p.name_raw;
 
     div.appendChild(img);
     div.appendChild(span);
-
     el.playersList.appendChild(div);
   });
 }
 
 /* =========================
-   MOTD (NUEVA API STRING HTML)
+   MOTD
 ========================= */
 
 function renderMOTD(motd) {
   if (!motd) return;
 
-  if (typeof motd.html === "string") {
-    el.motd.innerHTML = motd.html;
-    return;
-  }
-
-  if (Array.isArray(motd.html)) {
-    el.motd.innerHTML = motd.html.join("<br>");
-    return;
-  }
-
-  if (typeof motd.clean === "string") {
-    el.motd.textContent = motd.clean;
-    return;
-  }
-
-  if (Array.isArray(motd.clean)) {
-    el.motd.innerHTML = motd.clean.join("<br>");
-  }
+  el.motd.innerHTML =
+    motd.html ||
+    motd.clean ||
+    "";
 }
 
 /* =========================
@@ -234,10 +227,7 @@ function renderMOTD(motd) {
 
 function renderPing(data) {
   const ping = data?.ping;
-  if (ping == null) return;
-
-  el.ping.textContent = `${ping} ms`;
-  lastPing = ping;
+  el.ping.textContent = ping != null ? `${ping} ms` : "-- ms";
 }
 
 /* =========================
@@ -246,13 +236,12 @@ function renderPing(data) {
 
 function renderGraph(history) {
   if (!ctx || !el.canvas) return;
+  if (!history?.length) return;
 
   const w = el.canvas.width = el.canvas.offsetWidth;
   const h = el.canvas.height = 70;
 
   ctx.clearRect(0, 0, w, h);
-
-  if (!history || history.length < 2) return;
 
   const max = Math.max(...history);
   const min = Math.min(...history);
@@ -263,8 +252,7 @@ function renderGraph(history) {
     const x = (i / (history.length - 1)) * w;
     const y = h - ((v - min) / (max - min || 1)) * h;
 
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   });
 
   ctx.strokeStyle = "#58A6FF";
