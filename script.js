@@ -16,21 +16,13 @@ const el = {
   canvas: document.getElementById("ping-chart")
 };
 
-let ctx = null;
+const ctx = el.canvas?.getContext("2d");
+
 let lastRenderedPlayers = [];
 let lastPing = null;
 
 /* =========================
-   INIT CANVAS (SAFE)
-========================= */
-function initCanvas() {
-  if (!el.canvas) return;
-  ctx = el.canvas.getContext("2d");
-}
-initCanvas();
-
-/* =========================
-   HEAD SYSTEM (SIN CAMBIOS)
+   HEAD SYSTEM (NO CAMBIADO FUNCIONALMENTE)
 ========================= */
 
 const headCache = new Map();
@@ -91,7 +83,7 @@ async function fetchData() {
     render(data);
 
   } catch (e) {
-    console.error(e);
+    console.error("Fetch error:", e);
     setOffline();
   }
 }
@@ -116,7 +108,7 @@ function render(data) {
   renderMOTD(server.motd);
   renderPing(data);
   renderLastUpdate(data.lastUpdate);
-  renderGraph(data.pingHistory);
+  renderGraph(data.pingHistory || []);
 }
 
 /* =========================
@@ -138,13 +130,14 @@ function setOffline() {
 }
 
 /* =========================
-   VERSION
+   VERSION (FIX API NUEVA)
 ========================= */
 
 function renderVersion(server) {
   el.version.textContent =
     server?.version?.name_clean ||
     server?.version?.name_raw ||
+    server?.version ||
     "Unknown";
 }
 
@@ -153,13 +146,11 @@ function renderVersion(server) {
 ========================= */
 
 function renderIcon(server) {
-  if (server?.icon) {
-    el.icon.src = server.icon;
-  }
+  if (server?.icon) el.icon.src = server.icon;
 }
 
 /* =========================
-   PLAYERS
+   PLAYERS (FIX STRUCTURA)
 ========================= */
 
 function renderPlayers(players) {
@@ -171,13 +162,13 @@ function renderPlayers(players) {
 
   el.playersCount.textContent = `${online} / ${max}`;
 
-  const percent = max ? (online / max) * 100 : 0;
+  const percent = max > 0 ? (online / max) * 100 : 0;
   el.playersBar.style.width = `${percent}%`;
 
-  const names = list.map(p => p.name_clean || p.name_raw).join(",");
+  const names = list.map(p => p.name_raw || p.name || "").join(",");
   if (names === lastRenderedPlayers.join(",")) return;
 
-  lastRenderedPlayers = list.map(p => p.name_clean || p.name_raw);
+  lastRenderedPlayers = list.map(p => p.name_raw || p.name || "");
 
   el.playersList.replaceChildren();
 
@@ -194,31 +185,44 @@ function renderPlayers(players) {
     div.className = "player";
 
     const img = document.createElement("img");
-    img.alt = p.name_clean || p.name_raw;
+    img.alt = p.name_raw || p.name;
     img.loading = "lazy";
 
     setHeadWithFallback(img, p.uuid);
 
     const span = document.createElement("span");
-    span.textContent = p.name_clean || p.name_raw;
+    span.textContent = p.name_raw || p.name;
 
     div.appendChild(img);
     div.appendChild(span);
+
     el.playersList.appendChild(div);
   });
 }
 
 /* =========================
-   MOTD
+   MOTD (FIX CRÍTICO)
 ========================= */
 
 function renderMOTD(motd) {
   if (!motd) return;
 
-  el.motd.innerHTML =
-    motd.html ||
-    motd.clean ||
-    "";
+  // NUEVA API: motd.html ES STRING, NO ARRAY
+  const html =
+    typeof motd.html === "string"
+      ? motd.html
+      : Array.isArray(motd.html)
+        ? motd.html.join("<br>")
+        : "";
+
+  const clean =
+    typeof motd.clean === "string"
+      ? motd.clean
+      : Array.isArray(motd.clean)
+        ? motd.clean.join("<br>")
+        : "";
+
+  el.motd.innerHTML = html || clean || "";
 }
 
 /* =========================
@@ -227,7 +231,10 @@ function renderMOTD(motd) {
 
 function renderPing(data) {
   const ping = data?.ping;
-  el.ping.textContent = ping != null ? `${ping} ms` : "-- ms";
+  if (ping == null) return;
+
+  el.ping.textContent = `${ping} ms`;
+  lastPing = ping;
 }
 
 /* =========================
@@ -236,12 +243,13 @@ function renderPing(data) {
 
 function renderGraph(history) {
   if (!ctx || !el.canvas) return;
-  if (!history?.length) return;
 
   const w = el.canvas.width = el.canvas.offsetWidth;
   const h = el.canvas.height = 70;
 
   ctx.clearRect(0, 0, w, h);
+
+  if (!history?.length || history.length < 2) return;
 
   const max = Math.max(...history);
   const min = Math.min(...history);
