@@ -22,7 +22,7 @@ let lastRenderedPlayers = [];
 let lastPing = null;
 
 /* =========================
-   HEAD SYSTEM (NO CAMBIADO FUNCIONALMENTE)
+   HEAD SYSTEM (SIN CAMBIOS)
 ========================= */
 
 const headCache = new Map();
@@ -127,10 +127,16 @@ function setOffline() {
   el.playersCount.textContent = "0 / 20";
   el.playersBar.style.width = "0%";
   el.playersList.replaceChildren();
+
+  const arrow = document.querySelector(".ping-arrow");
+  const statusText = document.getElementById("ping-status-text");
+
+  if (arrow) arrow.style.left = "0%";
+  if (statusText) statusText.textContent = "--";
 }
 
 /* =========================
-   VERSION (FIX API NUEVA)
+   VERSION
 ========================= */
 
 function renderVersion(server) {
@@ -150,7 +156,7 @@ function renderIcon(server) {
 }
 
 /* =========================
-   PLAYERS (FIX STRUCTURA)
+   PLAYERS
 ========================= */
 
 function renderPlayers(players) {
@@ -201,13 +207,12 @@ function renderPlayers(players) {
 }
 
 /* =========================
-   MOTD (FIX CRÍTICO)
+   MOTD
 ========================= */
 
 function renderMOTD(motd) {
   if (!motd) return;
 
-  // NUEVA API: motd.html ES STRING, NO ARRAY
   const html =
     typeof motd.html === "string"
       ? motd.html
@@ -226,8 +231,31 @@ function renderMOTD(motd) {
 }
 
 /* =========================
-   PING
+   PING SYSTEM (NUEVO)
 ========================= */
+
+function getPingStatus(ping) {
+  if (ping <= 30) return "Excelente";
+  if (ping <= 60) return "Bueno";
+  if (ping <= 100) return "Aceptable";
+  if (ping <= 150) return "Pobre";
+  if (ping <= 250) return "Malo";
+  return "Injugable";
+}
+
+function getPingPercent(ping) {
+  const max = 300;
+  return Math.min((ping / max) * 100, 100);
+}
+
+function getPingColor(ping) {
+  if (ping <= 30) return "#2ecc71";
+  if (ping <= 60) return "#27ae60";
+  if (ping <= 100) return "#f1c40f";
+  if (ping <= 150) return "#f39c12";
+  if (ping <= 250) return "#e74c3c";
+  return "#2c2c2c";
+}
 
 function renderPing(data) {
   const ping = data?.ping;
@@ -235,6 +263,37 @@ function renderPing(data) {
 
   el.ping.textContent = `${ping} ms`;
   lastPing = ping;
+
+  const percent = getPingPercent(ping);
+  const status = getPingStatus(ping);
+  const color = getPingColor(ping);
+
+  const arrow = document.querySelector(".ping-arrow");
+  const statusText = document.getElementById("ping-status-text");
+  const bar = document.querySelector(".ping-bar");
+
+  if (arrow) {
+    arrow.style.left = `${percent}%`;
+  }
+
+  if (statusText) {
+    statusText.textContent = status;
+    statusText.style.color = color;
+  }
+
+  if (bar) {
+    bar.style.background = `
+      linear-gradient(to right,
+        #2ecc71 0%,
+        #2ecc71 10%,
+        #27ae60 20%,
+        #f1c40f 40%,
+        #f39c12 55%,
+        #e74c3c 80%,
+        #2c2c2c 100%
+      )
+    `;
+  }
 }
 
 /* =========================
