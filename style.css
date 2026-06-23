@@ -1,7 +1,198 @@
-.player {
+:root {
+  --bg: #0d1117;
+  --card: #161b22;
+  --text: #e6edf3;
+  --muted: #8b949e;
+
+  --green: #2ea043;
+  --yellow: #d29922;
+  --orange: #fb8500;
+  --red: #da3633;
+  --black: #0b0f14;
+
+  --blue: #58a6ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* ================= HEADER ================= */
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.logo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+
+.logo img {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+}
+
+.logo h1 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.logo p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.top-status {
+  text-align: right;
+}
+
+.status {
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.status.online {
+  background: rgba(46, 160, 67, 0.15);
+  color: var(--green);
+}
+
+.status.offline {
+  background: rgba(218, 54, 51, 0.15);
+  color: var(--red);
+}
+
+.version {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ================= CARDS ================= */
+
+.card {
+  background: var(--card);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.value {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* ================= STATS ================= */
+
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* ================= PROGRESS BAR ================= */
+
+.bar {
+  width: 100%;
+  height: 8px;
+  background: #222;
+  border-radius: 999px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+#players-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--blue);
+  transition: width 0.3s ease;
+}
+
+/* ================= PING BAR ================= */
+
+.ping-wrapper {
+  margin-top: 8px;
+  position: relative;
+}
+
+.ping-bar {
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  display: flex;
+}
+
+.ping-seg {
+  height: 100%;
+}
+
+.ping-excellent { background: #2ea043; width: 12%; }
+.ping-good      { background: #3fb950; width: 18%; }
+.ping-acceptable{ background: #d29922; width: 22%; }
+.ping-poor      { background: #fb8500; width: 22%; }
+.ping-bad       { background: #da3633; width: 26%; }
+.ping-dead      { background: #0b0f14; width: 20%; }
+
+.ping-arrow {
+  position: absolute;
+  top: -8px;
+  transform: translateX(-50%);
+  font-size: 14px;
+  color: white;
+  transition: left 0.3s ease;
+}
+
+/* ================= MOTD ================= */
+
+#motd {
+  font-size: 13px;
+  white-space: pre-wrap;
+  color: var(--text);
+}
+
+/* ================= PLAYERS ================= */
+
+.players-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* IMPORTANTE: evita que ocupe línea completa */
+.player {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #0f141b;
+  padding: 6px 10px;
+  border-radius: 8px;
+  width: auto;
   transition: transform 0.15s ease;
 }
 
@@ -9,40 +200,17 @@
   transform: scale(1.05);
 }
 
-#ping-state {
-  font-size: 12px;
-  margin-top: 4px;
-  font-weight: 600;
+.player img {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
 }
 
-.ping-bar {
-  position: relative;
-  height: 8px;
-  width: 100%;
-  margin-top: 10px;
-  border-radius: 6px;
-  background: linear-gradient(
-    to right,
-    #2ecc71 0%,
-    #27ae60 20%,
-    #f1c40f 40%,
-    #f39c12 60%,
-    #e74c3c 80%,
-    #2c3e50 100%
-  );
-}
-
-#ping-arrow {
-  position: absolute;
-  top: -10px;
-  left: 0%;
-  transform: translateX(-50%);
-  color: white;
-  transition: left 0.3s ease;
-}
+/* ================= FOOTER ================= */
 
 footer {
   text-align: center;
-  font-size: 12px;
-  color: #8b949e;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 10px;
 }
