@@ -13,19 +13,52 @@ const el = {
   ping: document.getElementById("ping-value"),
 
   lastUpdate: document.getElementById("last-update"),
-  canvas: document.getElementById("ping-chart"),
-
-  pingArrow: null
+  canvas: document.getElementById("ping-chart")
 };
 
 const ctx = el.canvas?.getContext("2d");
 
 let lastRenderedPlayers = [];
-let lastPing = null;
 
 /* =========================
-   UTIL: MINECRAFT COLORS
+   HEADS (SIN CAMBIOS)
 ========================= */
+
+const headCache = new Map();
+
+function getHead(uuid) {
+  return [
+    `https://mc-heads.net/avatar/${uuid}/40`,
+    `https://minotar.net/helm/${uuid}/40`
+  ];
+}
+
+function setHead(img, uuid, i = 0) {
+  if (!uuid) return (img.src = "assets/default-head.png");
+
+  if (headCache.has(uuid)) {
+    img.src = headCache.get(uuid);
+    return;
+  }
+
+  const urls = getHead(uuid);
+  if (i >= urls.length) return (img.src = "assets/default-head.png");
+
+  const url = urls[i];
+
+  const test = new Image();
+  test.onload = () => {
+    headCache.set(uuid, url);
+    img.src = url;
+  };
+  test.onerror = () => setHead(img, uuid, i + 1);
+  test.src = url;
+}
+
+/* =========================
+   MINECRAFT MOTD PARSER (FIX REAL)
+========================= */
+
 function parseMC(text) {
   if (!text) return "";
 
@@ -58,51 +91,9 @@ function parseMC(text) {
 }
 
 /* =========================
-   HEADS (SIN CAMBIOS)
-========================= */
-const headCache = new Map();
-
-function getHeadUrls(uuid) {
-  return [
-    `https://mc-heads.net/avatar/${uuid}/40`,
-    `https://minotar.net/helm/${uuid}/40`,
-    `https://visage.surgeplay.com/head/40/${uuid}`
-  ];
-}
-
-function setHead(img, uuid, i = 0) {
-  if (!uuid) {
-    img.src = "assets/default-head.png";
-    return;
-  }
-
-  if (headCache.has(uuid)) {
-    img.src = headCache.get(uuid);
-    return;
-  }
-
-  const urls = getHeadUrls(uuid);
-  if (i >= urls.length) {
-    img.src = "assets/default-head.png";
-    return;
-  }
-
-  const url = urls[i];
-  const test = new Image();
-
-  test.onload = () => {
-    headCache.set(uuid, url);
-    img.src = url;
-  };
-
-  test.onerror = () => setHead(img, uuid, i + 1);
-
-  test.src = url;
-}
-
-/* =========================
    FETCH
 ========================= */
+
 async function fetchData() {
   try {
     const res = await fetch(CONFIG.endpoint, { cache: "no-store" });
@@ -115,8 +106,9 @@ async function fetchData() {
 }
 
 /* =========================
-   RENDER CORE
+   CORE RENDER
 ========================= */
+
 function render(data) {
   const server = data?.server;
   if (!server) return setOffline();
@@ -128,30 +120,28 @@ function render(data) {
   renderPlayers(server.players);
   renderMOTD(server.motd);
   renderPing(data.ping);
-  renderLastUpdate(data.lastUpdate);
   renderGraph(data.pingHistory || []);
+  renderLastUpdate(data.lastUpdate);
 }
 
 /* =========================
    STATUS
 ========================= */
+
 function setOnline(server) {
-  el.status.textContent = "ONLINE";
-  el.status.className = "status online";
+  el.status.textContent = server.online ? "ONLINE" : "OFFLINE";
+  el.status.className = server.online ? "status online" : "status offline";
 }
 
 function setOffline() {
   el.status.textContent = "OFFLINE";
   el.status.className = "status offline";
-
-  el.playersCount.textContent = "0 / 0";
-  el.playersBar.style.width = "0%";
-  el.playersList.replaceChildren();
 }
 
 /* =========================
    VERSION
 ========================= */
+
 function renderVersion(server) {
   el.version.textContent =
     server?.version?.name_clean ||
@@ -162,6 +152,7 @@ function renderVersion(server) {
 /* =========================
    ICON
 ========================= */
+
 function renderIcon(server) {
   if (server?.icon) el.icon.src = server.icon;
 }
@@ -169,17 +160,16 @@ function renderIcon(server) {
 /* =========================
    PLAYERS
 ========================= */
+
 function renderPlayers(players) {
   if (!players) return;
 
   const list = players.list || [];
-  const online = players.online ?? 0;
-  const max = players.max ?? 0;
 
-  el.playersCount.textContent = `${online} / ${max}`;
+  el.playersCount.textContent =
+    `${players.online ?? 0} / ${players.max ?? 0}`;
 
-  const names = list.map(p => p.name).join(",");
-  if (names === lastRenderedPlayers.join(",")) return;
+  if (list.map(p => p.name).join() === lastRenderedPlayers.join()) return;
 
   lastRenderedPlayers = list.map(p => p.name);
 
@@ -198,27 +188,37 @@ function renderPlayers(players) {
 
     div.appendChild(img);
     div.appendChild(span);
+
     el.playersList.appendChild(div);
   });
 }
 
 /* =========================
-   MOTD
+   MOTD (FIX FINAL)
 ========================= */
+
 function renderMOTD(motd) {
-  const raw = motd?.html || motd?.clean || motd?.raw || "";
-  el.motd.innerHTML = parseMC(Array.isArray(raw) ? raw.join("<br>") : raw);
+  const raw =
+    motd?.html ||
+    motd?.clean ||
+    motd?.raw ||
+    "";
+
+  el.motd.innerHTML = parseMC(
+    Array.isArray(raw) ? raw.join("<br>") : raw
+  );
 }
 
 /* =========================
-   PING + STATE + BAR
+   PING + STATE (RESTAURADO)
 ========================= */
-function getPingState(ping) {
-  if (ping <= 30) return ["Excelente", "#2ecc71"];
-  if (ping <= 60) return ["Bueno", "#27ae60"];
-  if (ping <= 100) return ["Aceptable", "#f1c40f"];
-  if (ping <= 150) return ["Pobre", "#f39c12"];
-  if (ping <= 250) return ["Malo", "#e74c3c"];
+
+function getPingState(p) {
+  if (p <= 30) return ["Excelente", "#2ecc71"];
+  if (p <= 60) return ["Bueno", "#27ae60"];
+  if (p <= 100) return ["Aceptable", "#f1c40f"];
+  if (p <= 150) return ["Pobre", "#f39c12"];
+  if (p <= 250) return ["Malo", "#e74c3c"];
   return ["Injugable", "#2c3e50"];
 }
 
@@ -226,7 +226,6 @@ function renderPing(ping) {
   if (ping == null) return;
 
   el.ping.textContent = `${ping} ms`;
-  lastPing = ping;
 
   const [label, color] = getPingState(ping);
 
@@ -239,17 +238,12 @@ function renderPing(ping) {
 
   state.textContent = label;
   state.style.color = color;
-
-  const arrow = document.getElementById("ping-arrow");
-  if (arrow) {
-    const pct = Math.min(ping / 300, 1) * 100;
-    arrow.style.left = pct + "%";
-  }
 }
 
 /* =========================
-   GRAPH
+   GRAPH (OK)
 ========================= */
+
 function renderGraph(history) {
   if (!ctx) return;
 
@@ -271,22 +265,21 @@ function renderGraph(history) {
   });
 
   ctx.strokeStyle = "#58A6FF";
-  ctx.lineWidth = 2;
   ctx.stroke();
 }
 
 /* =========================
    LAST UPDATE
 ========================= */
+
 function renderLastUpdate(ts) {
   if (!ts) return;
-
-  const d = new Date(ts);
-  el.lastUpdate.textContent = d.toLocaleTimeString();
+  el.lastUpdate.textContent = new Date(ts).toLocaleTimeString();
 }
 
 /* =========================
    LOOP
 ========================= */
+
 fetchData();
 setInterval(fetchData, CONFIG.refreshIntervalMs);
