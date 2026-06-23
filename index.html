@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Noobserver Status</title>
 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="style.css">
 </head>
 
@@ -13,72 +16,77 @@
 
 <div class="container">
 
+  <!-- HEADER -->
   <header class="header">
     <div class="logo">
-      <img id="server-icon">
+      <img id="server-icon" src="" alt="server icon">
       <div>
         <h1>Noobserver</h1>
         <p>Minecraft Survival Server</p>
       </div>
     </div>
 
-    <div>
+    <div class="top-status">
       <div id="status" class="status offline">OFFLINE</div>
       <div id="version" class="version">-</div>
     </div>
   </header>
 
+  <!-- STATS -->
   <section class="stats">
 
     <div class="card">
       <div class="label">Jugadores</div>
       <div class="value" id="players-count">0 / 20</div>
-      <div class="bar"><div id="players-bar"></div></div>
+      <div class="bar">
+        <div id="players-bar"></div>
+      </div>
     </div>
 
-    <div class="card">
+    <!-- PING CARD -->
+    <div class="card ping-card">
 
       <div class="label">Ping</div>
-      <div class="value" id="ping-value">-- ms</div>
 
-      <!-- PING BAR -->
-      <div class="ping-wrapper">
+      <div class="ping-value">
+        <span id="ping-value">-- ms</span>
+        <span id="ping-status" class="ping-status">Sin datos</span>
+      </div>
 
-        <div class="ping-bar">
+      <!-- BARRA SEMÁFORO -->
+      <div class="ping-bar">
+        <div class="ping-seg green"></div>
+        <div class="ping-seg lime"></div>
+        <div class="ping-seg yellow"></div>
+        <div class="ping-seg orange"></div>
+        <div class="ping-seg red"></div>
+        <div class="ping-seg black"></div>
 
-          <div class="seg seg-excellent"></div>
-          <div class="seg seg-good"></div>
-          <div class="seg seg-ok"></div>
-          <div class="seg seg-bad"></div>
-          <div class="seg seg-poor"></div>
-          <div class="seg seg-dead"></div>
-
-          <div id="ping-indicator" class="ping-indicator"></div>
-
-        </div>
-
-        <div id="ping-state" class="ping-state">Sin datos</div>
-
+        <div id="ping-arrow" class="ping-arrow">▼</div>
       </div>
 
       <canvas id="ping-chart"></canvas>
-
     </div>
 
   </section>
 
-  <section class="card">
-    <div class="label">MOTD</div>
+  <!-- MOTD -->
+  <section class="card motd">
+    <div class="label">Mensaje del servidor</div>
     <div id="motd"></div>
   </section>
 
-  <section class="card">
-    <div class="label">Jugadores</div>
-    <div id="players-list"></div>
+  <!-- PLAYERS -->
+  <section class="card players">
+    <div class="label">Jugadores conectados</div>
+    <div id="players-list" class="players-list">
+      <div class="empty">Sin jugadores conectados</div>
+    </div>
   </section>
 
+  <!-- FOOTER -->
   <footer>
-    Última actualización: <span id="last-update">--</span>
+    <div>Última actualización: <span id="last-update">--</span></div>
   </footer>
 
 </div>
