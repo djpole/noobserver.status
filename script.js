@@ -19,55 +19,75 @@ const el = {
 const ctx = el.canvas?.getContext("2d");
 
 let lastRenderedPlayers = [];
-let lastPing = null;
 
 /* =========================
-   HEAD SYSTEM (NO CAMBIADO FUNCIONALMENTE)
+   HEADS (SIN CAMBIOS)
 ========================= */
 
 const headCache = new Map();
 
-function getHeadUrls(uuid) {
+function getHead(uuid) {
   return [
     `https://mc-heads.net/avatar/${uuid}/40`,
-    `https://minotar.net/helm/${uuid}/40`,
-    `https://visage.surgeplay.com/head/40/${uuid}`,
-    `https://crafatar.com/renders/head/${uuid}?size=40&overlay`,
+    `https://minotar.net/helm/${uuid}/40`
   ];
 }
 
-function setHeadWithFallback(img, uuid, index = 0) {
-  if (!uuid) {
-    img.src = "assets/default-head.png";
-    return;
-  }
+function setHead(img, uuid, i = 0) {
+  if (!uuid) return (img.src = "assets/default-head.png");
 
   if (headCache.has(uuid)) {
     img.src = headCache.get(uuid);
     return;
   }
 
-  const urls = getHeadUrls(uuid);
+  const urls = getHead(uuid);
+  if (i >= urls.length) return (img.src = "assets/default-head.png");
 
-  if (index >= urls.length) {
-    img.src = "assets/default-head.png";
-    return;
-  }
+  const url = urls[i];
 
-  const url = urls[index];
-
-  const tester = new Image();
-
-  tester.onload = () => {
+  const test = new Image();
+  test.onload = () => {
     headCache.set(uuid, url);
     img.src = url;
   };
+  test.onerror = () => setHead(img, uuid, i + 1);
+  test.src = url;
+}
 
-  tester.onerror = () => {
-    setHeadWithFallback(img, uuid, index + 1);
+/* =========================
+   MINECRAFT MOTD PARSER (FIX REAL)
+========================= */
+
+function parseMC(text) {
+  if (!text) return "";
+
+  const colors = {
+    a: "#55ff55",
+    b: "#55ffff",
+    c: "#ff5555",
+    d: "#ff55ff",
+    e: "#ffff55",
+    f: "#ffffff",
+    0: "#000000",
+    1: "#0000aa",
+    2: "#00aa00",
+    3: "#00aaaa",
+    4: "#aa0000",
+    5: "#aa00aa",
+    6: "#ffaa00",
+    7: "#aaaaaa",
+    8: "#555555",
+    9: "#5555ff"
   };
 
-  tester.src = url;
+  return text
+    .replace(/§[0-9a-f]/gi, m => {
+      const c = m[1].toLowerCase();
+      return `</span><span style="color:${colors[c] || "#fff"}">`;
+    })
+    .replace(/^/, "<span>")
+    .concat("</span>");
 }
 
 /* =========================
@@ -77,67 +97,55 @@ function setHeadWithFallback(img, uuid, index = 0) {
 async function fetchData() {
   try {
     const res = await fetch(CONFIG.endpoint, { cache: "no-store" });
-    if (!res.ok) throw new Error("HTTP error");
-
     const data = await res.json();
     render(data);
-
   } catch (e) {
-    console.error("Fetch error:", e);
+    console.error(e);
     setOffline();
   }
 }
 
 /* =========================
-   RENDER CORE
+   CORE RENDER
 ========================= */
 
 function render(data) {
   const server = data?.server;
+  if (!server) return setOffline();
 
-  if (!server) {
-    setOffline();
-    return;
-  }
-
-  setOnline();
+  setOnline(server);
 
   renderVersion(server);
   renderIcon(server);
   renderPlayers(server.players);
   renderMOTD(server.motd);
-  renderPing(data);
-  renderLastUpdate(data.lastUpdate);
+  renderPing(data.ping);
   renderGraph(data.pingHistory || []);
+  renderLastUpdate(data.lastUpdate);
 }
 
 /* =========================
    STATUS
 ========================= */
 
-function setOnline() {
-  el.status.textContent = "ONLINE";
-  el.status.className = "status online";
+function setOnline(server) {
+  el.status.textContent = server.online ? "ONLINE" : "OFFLINE";
+  el.status.className = server.online ? "status online" : "status offline";
 }
 
 function setOffline() {
   el.status.textContent = "OFFLINE";
   el.status.className = "status offline";
-
-  el.playersCount.textContent = "0 / 20";
-  el.playersBar.style.width = "0%";
-  el.playersList.replaceChildren();
 }
 
 /* =========================
-   VERSION (FIX API NUEVA)
+   VERSION
 ========================= */
 
 function renderVersion(server) {
   el.version.textContent =
     server?.version?.name_clean ||
     server?.version?.name_raw ||
-    server?.version ||
     "Unknown";
 }
 
@@ -150,48 +158,33 @@ function renderIcon(server) {
 }
 
 /* =========================
-   PLAYERS (FIX STRUCTURA)
+   PLAYERS
 ========================= */
 
 function renderPlayers(players) {
   if (!players) return;
 
-  const online = players.online ?? 0;
-  const max = players.max ?? 20;
-  const list = players.list ?? [];
+  const list = players.list || [];
 
-  el.playersCount.textContent = `${online} / ${max}`;
+  el.playersCount.textContent =
+    `${players.online ?? 0} / ${players.max ?? 0}`;
 
-  const percent = max > 0 ? (online / max) * 100 : 0;
-  el.playersBar.style.width = `${percent}%`;
+  if (list.map(p => p.name).join() === lastRenderedPlayers.join()) return;
 
-  const names = list.map(p => p.name_raw || p.name || "").join(",");
-  if (names === lastRenderedPlayers.join(",")) return;
-
-  lastRenderedPlayers = list.map(p => p.name_raw || p.name || "");
+  lastRenderedPlayers = list.map(p => p.name);
 
   el.playersList.replaceChildren();
 
-  if (!list.length) {
-    const empty = document.createElement("div");
-    empty.className = "empty";
-    empty.textContent = "No hay jugadores conectados";
-    el.playersList.appendChild(empty);
-    return;
-  }
-
-  list.slice(0, CONFIG.maxPlayers).forEach(p => {
+  list.forEach(p => {
     const div = document.createElement("div");
     div.className = "player";
 
     const img = document.createElement("img");
-    img.alt = p.name_raw || p.name;
-    img.loading = "lazy";
-
-    setHeadWithFallback(img, p.uuid);
-
     const span = document.createElement("span");
-    span.textContent = p.name_raw || p.name;
+
+    span.textContent = p.name;
+
+    setHead(img, p.uuid);
 
     div.appendChild(img);
     div.appendChild(span);
@@ -201,55 +194,64 @@ function renderPlayers(players) {
 }
 
 /* =========================
-   MOTD (FIX CRÍTICO)
+   MOTD (FIX FINAL)
 ========================= */
 
 function renderMOTD(motd) {
-  if (!motd) return;
+  const raw =
+    motd?.html ||
+    motd?.clean ||
+    motd?.raw ||
+    "";
 
-  // NUEVA API: motd.html ES STRING, NO ARRAY
-  const html =
-    typeof motd.html === "string"
-      ? motd.html
-      : Array.isArray(motd.html)
-        ? motd.html.join("<br>")
-        : "";
-
-  const clean =
-    typeof motd.clean === "string"
-      ? motd.clean
-      : Array.isArray(motd.clean)
-        ? motd.clean.join("<br>")
-        : "";
-
-  el.motd.innerHTML = html || clean || "";
+  el.motd.innerHTML = parseMC(
+    Array.isArray(raw) ? raw.join("<br>") : raw
+  );
 }
 
 /* =========================
-   PING
+   PING + STATE (RESTAURADO)
 ========================= */
 
-function renderPing(data) {
-  const ping = data?.ping;
+function getPingState(p) {
+  if (p <= 30) return ["Excelente", "#2ecc71"];
+  if (p <= 60) return ["Bueno", "#27ae60"];
+  if (p <= 100) return ["Aceptable", "#f1c40f"];
+  if (p <= 150) return ["Pobre", "#f39c12"];
+  if (p <= 250) return ["Malo", "#e74c3c"];
+  return ["Injugable", "#2c3e50"];
+}
+
+function renderPing(ping) {
   if (ping == null) return;
 
   el.ping.textContent = `${ping} ms`;
-  lastPing = ping;
+
+  const [label, color] = getPingState(ping);
+
+  let state = document.getElementById("ping-state");
+  if (!state) {
+    state = document.createElement("div");
+    state.id = "ping-state";
+    el.ping.parentElement.appendChild(state);
+  }
+
+  state.textContent = label;
+  state.style.color = color;
 }
 
 /* =========================
-   GRAPH
+   GRAPH (OK)
 ========================= */
 
 function renderGraph(history) {
-  if (!ctx || !el.canvas) return;
+  if (!ctx) return;
 
   const w = el.canvas.width = el.canvas.offsetWidth;
   const h = el.canvas.height = 70;
 
   ctx.clearRect(0, 0, w, h);
-
-  if (!history?.length || history.length < 2) return;
+  if (!history.length) return;
 
   const max = Math.max(...history);
   const min = Math.min(...history);
@@ -259,12 +261,10 @@ function renderGraph(history) {
   history.forEach((v, i) => {
     const x = (i / (history.length - 1)) * w;
     const y = h - ((v - min) / (max - min || 1)) * h;
-
     i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   });
 
   ctx.strokeStyle = "#58A6FF";
-  ctx.lineWidth = 2;
   ctx.stroke();
 }
 

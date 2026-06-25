@@ -1,82 +1,52 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Noobserver Status</title>
 
-  <!-- FAVICON (AQUÍ ESTÁ EL FIX) -->
-  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="icon" type="image/png" href="assets/favicon.png"/>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css"/>
 </head>
 
 <body>
 
-  <div class="container">
+<div class="container">
 
-    <!-- HEADER -->
-    <header class="header">
-      <div class="logo">
-        <img id="server-icon" src="" alt="server icon">
-        <div>
-          <h1>Noobserver</h1>
-          <p>Minecraft Survival Server</p>
-        </div>
-      </div>
+<header>
+  <img id="server-icon">
+  <h1>Noobserver</h1>
+  <div id="status" class="status offline">OFFLINE</div>
+  <div id="version"></div>
+</header>
 
-      <div class="top-status">
-        <div id="status" class="status offline">OFFLINE</div>
-        <div id="version" class="version">-</div>
-      </div>
-    </header>
+<section>
+  <div id="players-count"></div>
+  <div id="players-bar"></div>
+  <div id="players-list"></div>
+</section>
 
-    <!-- QUICK STATS -->
-    <section class="stats">
+<section>
+  <div id="ping-value"></div>
 
-      <div class="card">
-        <div class="label">Jugadores</div>
-        <div class="value" id="players-count">0 / 20</div>
-        <div class="bar">
-          <div id="players-bar"></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="label">Ping</div>
-        <div class="value" id="ping-value">-- ms</div>
-        <canvas id="ping-chart"></canvas>
-      </div>
-
-    </section>
-
-    <!-- MOTD -->
-    <section class="card motd">
-      <div class="label">Mensaje del servidor</div>
-      <div id="motd"></div>
-    </section>
-
-    <!-- PLAYERS -->
-    <section class="card players">
-      <div class="label">Jugadores conectados</div>
-      <div id="players-list" class="players-list">
-        <div class="empty">Sin jugadores conectados</div>
-      </div>
-    </section>
-
-    <!-- FOOTER -->
-    <footer>
-      <div>Última actualización: <span id="last-update">--</span></div>
-    </footer>
-
+  <div class="ping-bar">
+    <div id="ping-arrow">▼</div>
   </div>
 
-  <script src="config.js"></script>
-  <script src="script.js"></script>
+  <canvas id="ping-chart"></canvas>
+</section>
+
+<section id="motd"></section>
+
+<footer>
+  Última actualización: <span id="last-update">--</span>
+</footer>
+
+</div>
+
+<script src="config.js"></script>
+<script src="script.js"></script>
 
 </body>
 </html>
