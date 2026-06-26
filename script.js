@@ -144,7 +144,7 @@ function renderIcon(server) {
 }
 
 /* =========================
-   PLAYERS (FIX REAL)
+   PLAYERS (FIX DEFINITIVO)
 ========================= */
 
 function renderPlayers(players) {
@@ -153,19 +153,22 @@ function renderPlayers(players) {
   const online = players.online ?? 0;
   const max = players.max ?? 20;
 
-  const list = players.list ?? [];
+  // 🔴 FIX CRÍTICO: normalización segura SIEMPRE array
+  const list = Array.isArray(players.list)
+    ? players.list
+    : [];
 
   el.playersCount.textContent = `${online} / ${max}`;
   el.playersBar.style.width = `${max ? (online / max) * 100 : 0}%`;
 
-  const namesKey = list.map(p => p.uuid).join(",");
-  if (namesKey === lastRenderedPlayers.join(",")) return;
+  const currentKey = list.map(p => p.uuid).join(",");
+  if (currentKey === lastRenderedPlayers.join(",")) return;
 
   lastRenderedPlayers = list.map(p => p.uuid);
 
   el.playersList.replaceChildren();
 
-  if (!Array.isArray(list) || list.length === 0) {
+  if (list.length === 0) {
     el.playersList.innerHTML =
       `<div class="empty">Sin jugadores conectados</div>`;
     return;
@@ -182,8 +185,6 @@ function renderPlayers(players) {
     setHeadWithFallback(img, p.uuid);
 
     const span = document.createElement("span");
-
-    // FIX CRÍTICO
     span.textContent =
       p.name_clean ||
       p.name_raw ||
