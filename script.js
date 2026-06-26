@@ -12,17 +12,8 @@ const el = {
   motd: document.getElementById("motd"),
   ping: document.getElementById("ping-value"),
 
-  lastUpdate: document.getElementById("last-update"),
-  canvas: document.getElementById("ping-chart")
+  lastUpdate: document.getElementById("last-update")
 };
-
-const ctx = el.canvas?.getContext("2d");
-
-let lastRenderedPlayers = [];
-
-/* =========================
-   FETCH
-========================= */
 
 async function fetchData() {
   try {
@@ -33,17 +24,13 @@ async function fetchData() {
     render(data);
 
   } catch (e) {
-    console.error(e);
     setOffline();
   }
 }
 
-/* =========================
-   RENDER
-========================= */
-
 function render(data) {
   const server = data?.server;
+
   if (!server) return setOffline();
 
   setOnline();
@@ -55,10 +42,6 @@ function render(data) {
   renderPing(data);
   renderLastUpdate(data.lastUpdate);
 }
-
-/* =========================
-   STATUS
-========================= */
 
 function setOnline() {
   el.status.textContent = "ONLINE";
@@ -74,29 +57,14 @@ function setOffline() {
   el.playersList.replaceChildren();
 }
 
-/* =========================
-   VERSION
-========================= */
-
 function renderVersion(server) {
   el.version.textContent =
-    server?.version?.name_clean ||
-    server?.version ||
-    "Unknown";
+    server?.version?.name_clean || "Unknown";
 }
-
-/* =========================
-   ICON
-========================= */
 
 function renderIcon(server) {
-  if (!server?.icon) return;
-  el.icon.src = server.icon;
+  el.icon.src = server?.icon || "";
 }
-
-/* =========================
-   PLAYERS
-========================= */
 
 function renderPlayers(players) {
   if (!players) return;
@@ -111,8 +79,7 @@ function renderPlayers(players) {
   el.playersList.replaceChildren();
 
   if (!list.length) {
-    el.playersList.innerHTML =
-      `<div class="empty">Sin jugadores conectados</div>`;
+    el.playersList.innerHTML = `<div class="empty">Sin jugadores conectados</div>`;
     return;
   }
 
@@ -124,7 +91,7 @@ function renderPlayers(players) {
     img.src = `https://mc-heads.net/avatar/${p.uuid}/40`;
 
     const span = document.createElement("span");
-    span.textContent = p.name_raw || p.name_clean || p.name;
+    span.textContent = p.name_raw;
 
     div.appendChild(img);
     div.appendChild(span);
@@ -132,10 +99,6 @@ function renderPlayers(players) {
     el.playersList.appendChild(div);
   });
 }
-
-/* =========================
-   MOTD
-========================= */
 
 function renderMOTD(motd) {
   if (!motd) return;
@@ -146,29 +109,15 @@ function renderMOTD(motd) {
     "";
 }
 
-/* =========================
-   PING
-========================= */
-
 function renderPing(data) {
-  const ping = data?.ping;
-  if (ping == null) return;
-  el.ping.textContent = `${ping} ms`;
+  el.ping.textContent =
+    data?.ping != null ? `${data.ping} ms` : "";
 }
-
-/* =========================
-   LAST UPDATE
-========================= */
 
 function renderLastUpdate(ts) {
   if (!ts) return;
-  const d = new Date(ts);
-  el.lastUpdate.textContent = d.toLocaleString();
+  el.lastUpdate.textContent = new Date(ts).toLocaleString();
 }
-
-/* =========================
-   LOOP
-========================= */
 
 fetchData();
 setInterval(fetchData, CONFIG.refreshIntervalMs);
