@@ -22,7 +22,7 @@ let lastRenderedPlayers = [];
 let lastPing = null;
 
 /* =========================
-   HEAD SYSTEM (FIXED + CLEAN)
+   HEAD SYSTEM
 ========================= */
 
 const headCache = new Map();
@@ -118,7 +118,7 @@ function setOffline() {
 }
 
 /* =========================
-   VERSION (FIX FINAL)
+   VERSION
 ========================= */
 
 function renderVersion(server) {
@@ -144,7 +144,7 @@ function renderIcon(server) {
 }
 
 /* =========================
-   PLAYERS
+   PLAYERS (FIX REAL)
 ========================= */
 
 function renderPlayers(players) {
@@ -152,21 +152,22 @@ function renderPlayers(players) {
 
   const online = players.online ?? 0;
   const max = players.max ?? 20;
+
   const list = players.list ?? [];
 
   el.playersCount.textContent = `${online} / ${max}`;
   el.playersBar.style.width = `${max ? (online / max) * 100 : 0}%`;
 
-  const names = list.map(p => p.name).join(",");
-  if (names === lastRenderedPlayers.join(",")) return;
+  const namesKey = list.map(p => p.uuid).join(",");
+  if (namesKey === lastRenderedPlayers.join(",")) return;
 
-  lastRenderedPlayers = list.map(p => p.name);
+  lastRenderedPlayers = list.map(p => p.uuid);
 
   el.playersList.replaceChildren();
 
-  if (!list.length) {
+  if (!Array.isArray(list) || list.length === 0) {
     el.playersList.innerHTML =
-      `<div class="empty">No hay jugadores conectados</div>`;
+      `<div class="empty">Sin jugadores conectados</div>`;
     return;
   }
 
@@ -175,13 +176,18 @@ function renderPlayers(players) {
     div.className = "player";
 
     const img = document.createElement("img");
-    img.alt = p.name;
+    img.alt = p.name_clean || p.name_raw || "player";
     img.loading = "lazy";
 
     setHeadWithFallback(img, p.uuid);
 
     const span = document.createElement("span");
-    span.textContent = p.name;
+
+    // FIX CRÍTICO
+    span.textContent =
+      p.name_clean ||
+      p.name_raw ||
+      "unknown";
 
     div.appendChild(img);
     div.appendChild(span);
