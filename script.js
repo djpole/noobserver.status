@@ -57,14 +57,8 @@ function setHeadWithFallback(img, uuid, index = 0) {
 
   const url = urls[index];
 
-  img.onload = () => {
-    headCache.set(uuid, url);
-  };
-
-  img.onerror = () => {
-    setHeadWithFallback(img, uuid, index + 1);
-  };
-
+  img.onload = () => headCache.set(uuid, url);
+  img.onerror = () => setHeadWithFallback(img, uuid, index + 1);
   img.src = url;
 }
 
@@ -124,13 +118,18 @@ function setOffline() {
 }
 
 /* =========================
-   VERSION
+   VERSION (FIX FINAL)
 ========================= */
 
 function renderVersion(server) {
+  const version =
+    typeof server.version === "string"
+      ? server.version
+      : server.version?.name;
+
   el.version.textContent =
     server.protocol?.name ||
-    server.version ||
+    version ||
     "Unknown";
 }
 
@@ -139,7 +138,9 @@ function renderVersion(server) {
 ========================= */
 
 function renderIcon(server) {
-  if (server.icon) el.icon.src = server.icon;
+  if (typeof server.icon === "string") {
+    el.icon.src = server.icon;
+  }
 }
 
 /* =========================
@@ -190,7 +191,7 @@ function renderPlayers(players) {
 }
 
 /* =========================
-   MOTD (FIXED)
+   MOTD
 ========================= */
 
 function renderMOTD(motd) {
@@ -201,19 +202,16 @@ function renderMOTD(motd) {
 
   const html = motd.html;
 
-  // caso string directo
   if (typeof html === "string") {
     el.motd.innerHTML = html;
     return;
   }
 
-  // caso array
   if (Array.isArray(html)) {
     el.motd.innerHTML = html.join("<br>");
     return;
   }
 
-  // fallback clean string
   if (typeof motd.clean === "string") {
     el.motd.textContent = motd.clean;
     return;
@@ -228,7 +226,7 @@ function renderMOTD(motd) {
 }
 
 /* =========================
-   PING (FIXED)
+   PING
 ========================= */
 
 function renderPing(data) {
@@ -240,14 +238,10 @@ function renderPing(data) {
   }
 
   el.ping.textContent = `${ping} ms`;
-
-  if (typeof ping === "number") {
-    lastPing = ping;
-  }
 }
 
 /* =========================
-   LAST UPDATE (FIXED)
+   LAST UPDATE
 ========================= */
 
 function renderLastUpdate(lastUpdate) {
