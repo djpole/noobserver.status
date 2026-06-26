@@ -19,48 +19,6 @@ const el = {
 const ctx = el.canvas?.getContext("2d");
 
 let lastRenderedPlayers = [];
-let lastPing = null;
-
-/* =========================
-   HEAD SYSTEM
-========================= */
-
-const headCache = new Map();
-
-function getHeadUrls(uuid) {
-  return [
-    `https://mc-heads.net/avatar/${uuid}/40`,
-    `https://minotar.net/helm/${uuid}/40`,
-    `https://visage.surgeplay.com/head/40/${uuid}`,
-    `assets/default-head.png`
-  ];
-}
-
-function setHeadWithFallback(img, uuid, index = 0) {
-  if (!uuid) {
-    img.src = "assets/default-head.png";
-    return;
-  }
-
-  const cache = headCache.get(uuid);
-  if (cache) {
-    img.src = cache;
-    return;
-  }
-
-  const urls = getHeadUrls(uuid);
-
-  if (index >= urls.length) {
-    img.src = "assets/default-head.png";
-    return;
-  }
-
-  const url = urls[index];
-
-  img.onload = () => headCache.set(uuid, url);
-  img.onerror = () => setHeadWithFallback(img, uuid, index + 1);
-  img.src = url;
-}
 
 /* =========================
    FETCH
@@ -96,7 +54,6 @@ function render(data) {
   renderMOTD(server.motd);
   renderPing(data);
   renderLastUpdate(data.lastUpdate);
-  renderGraph(data.pingHistory || []);
 }
 
 /* =========================
@@ -122,14 +79,9 @@ function setOffline() {
 ========================= */
 
 function renderVersion(server) {
-  const version =
-    typeof server.version === "string"
-      ? server.version
-      : server.version?.name;
-
   el.version.textContent =
-    server.protocol?.name ||
-    version ||
+    server?.version?.name_clean ||
+    server?.version ||
     "Unknown";
 }
 
@@ -138,13 +90,12 @@ function renderVersion(server) {
 ========================= */
 
 function renderIcon(server) {
-  if (typeof server.icon === "string") {
-    el.icon.src = server.icon;
-  }
+  if (!server?.icon) return;
+  el.icon.src = server.icon;
 }
 
 /* =========================
-   PLAYERS (FIX DEFINITIVO)
+   PLAYERS
 ========================= */
 
 function renderPlayers(players) {
@@ -152,43 +103,28 @@ function renderPlayers(players) {
 
   const online = players.online ?? 0;
   const max = players.max ?? 20;
-
-  // 🔴 FIX CRÍTICO: normalización segura SIEMPRE array
-  const list = Array.isArray(players.list)
-    ? players.list
-    : [];
+  const list = players.list ?? [];
 
   el.playersCount.textContent = `${online} / ${max}`;
   el.playersBar.style.width = `${max ? (online / max) * 100 : 0}%`;
 
-  const currentKey = list.map(p => p.uuid).join(",");
-  if (currentKey === lastRenderedPlayers.join(",")) return;
-
-  lastRenderedPlayers = list.map(p => p.uuid);
-
   el.playersList.replaceChildren();
 
-  if (list.length === 0) {
+  if (!list.length) {
     el.playersList.innerHTML =
       `<div class="empty">Sin jugadores conectados</div>`;
     return;
   }
 
-  list.slice(0, CONFIG.maxPlayers).forEach(p => {
+  list.forEach(p => {
     const div = document.createElement("div");
     div.className = "player";
 
     const img = document.createElement("img");
-    img.alt = p.name_clean || p.name_raw || "player";
-    img.loading = "lazy";
-
-    setHeadWithFallback(img, p.uuid);
+    img.src = `https://mc-heads.net/avatar/${p.uuid}/40`;
 
     const span = document.createElement("span");
-    span.textContent =
-      p.name_clean ||
-      p.name_raw ||
-      "unknown";
+    span.textContent = p.name_raw || p.name_clean || p.name;
 
     div.appendChild(img);
     div.appendChild(span);
@@ -202,34 +138,12 @@ function renderPlayers(players) {
 ========================= */
 
 function renderMOTD(motd) {
-  if (!motd) {
-    el.motd.textContent = "";
-    return;
-  }
+  if (!motd) return;
 
-  const html = motd.html;
-
-  if (typeof html === "string") {
-    el.motd.innerHTML = html;
-    return;
-  }
-
-  if (Array.isArray(html)) {
-    el.motd.innerHTML = html.join("<br>");
-    return;
-  }
-
-  if (typeof motd.clean === "string") {
-    el.motd.textContent = motd.clean;
-    return;
-  }
-
-  if (Array.isArray(motd.clean)) {
-    el.motd.textContent = motd.clean.join("\n");
-    return;
-  }
-
-  el.motd.textContent = "";
+  el.motd.innerHTML =
+    motd.html?.join("<br>") ||
+    motd.clean?.join("<br>") ||
+    "";
 }
 
 /* =========================
@@ -238,12 +152,7 @@ function renderMOTD(motd) {
 
 function renderPing(data) {
   const ping = data?.ping;
-
-  if (ping == null || isNaN(ping)) {
-    el.ping.textContent = "-- ms";
-    return;
-  }
-
+  if (ping == null) return;
   el.ping.textContent = `${ping} ms`;
 }
 
@@ -251,51 +160,10 @@ function renderPing(data) {
    LAST UPDATE
 ========================= */
 
-function renderLastUpdate(lastUpdate) {
-  if (!lastUpdate) {
-    el.lastUpdate.textContent = "--";
-    return;
-  }
-
-  const date = new Date(lastUpdate);
-
-  if (isNaN(date.getTime())) {
-    el.lastUpdate.textContent = "--";
-    return;
-  }
-
-  el.lastUpdate.textContent = date.toLocaleTimeString();
-}
-
-/* =========================
-   GRAPH
-========================= */
-
-function renderGraph(history) {
-  if (!ctx || !el.canvas) return;
-
-  const w = el.canvas.width = el.canvas.offsetWidth;
-  const h = el.canvas.height = 70;
-
-  ctx.clearRect(0, 0, w, h);
-
-  if (!history?.length) return;
-
-  const max = Math.max(...history);
-  const min = Math.min(...history);
-
-  ctx.beginPath();
-
-  history.forEach((v, i) => {
-    const x = (i / (history.length - 1)) * w;
-    const y = h - ((v - min) / (max - min || 1)) * h;
-
-    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-  });
-
-  ctx.strokeStyle = "#58A6FF";
-  ctx.lineWidth = 2;
-  ctx.stroke();
+function renderLastUpdate(ts) {
+  if (!ts) return;
+  const d = new Date(ts);
+  el.lastUpdate.textContent = d.toLocaleString();
 }
 
 /* =========================
