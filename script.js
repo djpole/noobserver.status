@@ -190,27 +190,80 @@ function renderPlayers(players) {
 }
 
 /* =========================
-   MOTD
+   MOTD (FIXED)
 ========================= */
 
 function renderMOTD(motd) {
-  if (!motd) return;
+  if (!motd) {
+    el.motd.textContent = "";
+    return;
+  }
 
-  el.motd.innerHTML =
-    motd.html?.join("<br>") ||
-    motd.clean?.join("<br>") ||
-    "";
+  const html = motd.html;
+
+  // caso string directo
+  if (typeof html === "string") {
+    el.motd.innerHTML = html;
+    return;
+  }
+
+  // caso array
+  if (Array.isArray(html)) {
+    el.motd.innerHTML = html.join("<br>");
+    return;
+  }
+
+  // fallback clean string
+  if (typeof motd.clean === "string") {
+    el.motd.textContent = motd.clean;
+    return;
+  }
+
+  if (Array.isArray(motd.clean)) {
+    el.motd.textContent = motd.clean.join("\n");
+    return;
+  }
+
+  el.motd.textContent = "";
 }
 
 /* =========================
-   PING
+   PING (FIXED)
 ========================= */
 
 function renderPing(data) {
   const ping = data?.ping;
-  if (ping == null) return;
+
+  if (ping == null || isNaN(ping)) {
+    el.ping.textContent = "-- ms";
+    return;
+  }
 
   el.ping.textContent = `${ping} ms`;
+
+  if (typeof ping === "number") {
+    lastPing = ping;
+  }
+}
+
+/* =========================
+   LAST UPDATE (FIXED)
+========================= */
+
+function renderLastUpdate(lastUpdate) {
+  if (!lastUpdate) {
+    el.lastUpdate.textContent = "--";
+    return;
+  }
+
+  const date = new Date(lastUpdate);
+
+  if (isNaN(date.getTime())) {
+    el.lastUpdate.textContent = "--";
+    return;
+  }
+
+  el.lastUpdate.textContent = date.toLocaleTimeString();
 }
 
 /* =========================
