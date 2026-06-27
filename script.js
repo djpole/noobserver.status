@@ -122,7 +122,7 @@ function renderMOTD(motd) {
 }
 
 // ----------------------------------------------------
-// PING STATUS (con nueva escala)
+// PING STATUS - CORREGIDO
 // ----------------------------------------------------
 function renderPing(data) {
   const ping = data?.ping != null ? Number(data.ping) : 0;
@@ -133,23 +133,23 @@ function renderPing(data) {
   let statusClass = "terrible";
 
   if (ping <= 30) {
-    position = (ping / 30) * 20;           // 0-20%
+    position = (ping / 30) * 20;                    // 0-20%
     statusText = "Excelente";
     statusClass = "excellent";
   } else if (ping <= 60) {
-    position = 20 + ((ping - 30) / 30) * 20; // 20-40%
+    position = 20 + ((ping - 30) / 30) * 20;        // 20-40%
     statusText = "Bueno";
     statusClass = "good";
   } else if (ping <= 150) {
-    position = 40 + ((ping - 60) / 90) * 20; // 40-60%
+    position = 40 + ((ping - 60) / 90) * 20;        // 40-60%
     statusText = "Aceptable";
     statusClass = "acceptable";
   } else if (ping <= 250) {
-    position = 60 + ((ping - 150) / 100) * 20; // 60-80%
+    position = 60 + ((ping - 150) / 100) * 20;      // 60-80%
     statusText = "Malo";
     statusClass = "bad";
   } else {
-    position = 80 + Math.min((ping - 250) / 150 * 20, 20); // 80-100%
+    position = 80 + Math.min(((ping - 250) / 200) * 20, 20); // 80-100%
     statusText = "Injugable";
     statusClass = "terrible";
   }
