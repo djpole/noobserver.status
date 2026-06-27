@@ -13,14 +13,9 @@ const el = {
   motd: document.getElementById("motd"),
   ping: document.getElementById("ping-value"),
   lastUpdate: document.getElementById("last-update"),
-  pingChart: document.getElementById("ping-chart")
+  pingArrow: document.getElementById("ping-arrow"),
+  pingStatusText: document.getElementById("ping-status-text")
 };
-
-// ----------------------------------------------------
-// PING HISTORY + CANVAS
-// ----------------------------------------------------
-const pingHistory = new Array(CONFIG.pingHistorySize || 60).fill(0);
-const ctx = el.pingChart.getContext("2d");
 
 // ----------------------------------------------------
 // FETCH LOOP
@@ -29,10 +24,8 @@ async function fetchData() {
   try {
     const res = await fetch(CONFIG.endpoint, { cache: "no-store" });
     if (!res.ok) throw new Error("HTTP error");
-
     const data = await res.json();
     render(data);
-
   } catch (e) {
     console.error(e);
     setOffline();
@@ -44,17 +37,15 @@ async function fetchData() {
 // ----------------------------------------------------
 function render(data) {
   const server = data?.server;
-
   if (!server || !server.online) {
     return setOffline();
   }
-
   setOnline();
   renderVersion(server);
   renderIcon(server);
   renderPlayers(server.players);
   renderMOTD(server.motd);
-  renderPing(server);
+  renderPing(data);           // Cambiado para pasar todo el data
   renderLastUpdate(data.lastUpdate);
 }
 
@@ -69,36 +60,24 @@ function setOnline() {
 function setOffline() {
   el.status.textContent = "OFFLINE";
   el.status.className = "status offline";
-
   el.playersCount.textContent = "0 / 20";
   el.playersBar.style.width = "0%";
-
-  el.playersList.innerHTML =
-    `<div class="empty">Sin jugadores conectados</div>`;
-
+  el.playersList.innerHTML = `<div class="empty">Sin jugadores conectados</div>`;
   el.motd.innerHTML = "";
   el.version.textContent = "-";
-
   el.icon.removeAttribute("src");
-
   el.ping.textContent = "-- ms";
-
-  clearPingChart();
+  el.pingStatusText.textContent = "Estado del servidor: Sin datos";
+  el.pingArrow.style.left = "0%";
 }
 
 // ----------------------------------------------------
-// VERSION
+// VERSION, ICON, PLAYERS, MOTD (sin cambios)
 // ----------------------------------------------------
 function renderVersion(server) {
-  el.version.textContent =
-    server?.version?.name_clean ||
-    server?.version ||
-    "Unknown";
+  el.version.textContent = server?.version?.name_clean || server?.version || "Unknown";
 }
 
-// ----------------------------------------------------
-// ICON
-// ----------------------------------------------------
 function renderIcon(server) {
   if (server?.icon) {
     el.icon.src = server.icon;
@@ -107,50 +86,33 @@ function renderIcon(server) {
   }
 }
 
-// ----------------------------------------------------
-// PLAYERS
-// ----------------------------------------------------
 function renderPlayers(players) {
   if (!players) return;
-
   const online = players.online ?? 0;
   const max = players.max ?? 20;
   const list = Array.isArray(players.list) ? players.list : [];
-
   el.playersCount.textContent = `${online} / ${max}`;
-  el.playersBar.style.width =
-    `${max ? Math.round((online / max) * 100) : 0}%`;
-
+  el.playersBar.style.width = `${max ? Math.round((online / max) * 100) : 0}%`;
   el.playersList.innerHTML = "";
-
   if (!list.length) {
-    el.playersList.innerHTML =
-      `<div class="empty">Sin jugadores conectados</div>`;
+    el.playersList.innerHTML = `<div class="empty">Sin jugadores conectados</div>`;
     return;
   }
-
   list.forEach(p => {
     const div = document.createElement("div");
     div.className = "player";
-
     const img = document.createElement("img");
     img.src = `https://mc-heads.net/avatar/${p.uuid || p.name_raw}/40`;
-
     const span = document.createElement("span");
     span.textContent = p.name_raw || p.name_clean;
-
     div.appendChild(img);
     div.appendChild(span);
     el.playersList.appendChild(div);
   });
 }
 
-// ----------------------------------------------------
-// MOTD
-// ----------------------------------------------------
 function renderMOTD(motd) {
   if (!motd) return;
-
   if (typeof motd.html === "string") {
     el.motd.innerHTML = motd.html;
   } else if (motd.clean) {
@@ -159,21 +121,39 @@ function renderMOTD(motd) {
 }
 
 // ----------------------------------------------------
-// PING + HISTORIAL
+// NUEVA FUNCIÓN PING
 // ----------------------------------------------------
 function renderPing(data) {
-  const ping = data?.ping;
+  const ping = data?.ping != null ? Number(data.ping) : 0;
+  
+  el.ping.textContent = `${ping.toFixed(1)} ms`;
 
-  if (ping == null) {
-    el.ping.textContent = "-- ms";
-    return;
+  // Determinar posición de la flecha (0% a 100%)
+  let position = 0;
+  let statusText = "Injugable";
+  let statusClass = "terrible";
+
+  if (ping <= 60) {
+    position = (ping / 60) * 25;           // 0-25%
+    statusText = "Bueno";
+    statusClass = "good";
+  } else if (ping <= 150) {
+    position = 25 + ((ping - 60) / 90) * 25; // 25-50%
+    statusText = "Aceptable";
+    statusClass = "acceptable";
+  } else if (ping <= 250) {
+    position = 50 + ((ping - 150) / 100) * 25; // 50-75%
+    statusText = "Malo";
+    statusClass = "bad";
+  } else {
+    position = 75 + Math.min((ping - 250) / 100 * 25, 25); // 75-100%
+    statusText = "Injugable";
+    statusClass = "terrible";
   }
 
-  const value = Number(ping);
-
-  el.ping.textContent = `${value.toFixed(1)} ms`;
-
-  updatePingHistory(value);
+  el.pingArrow.style.left = `${Math.min(Math.max(position, 2), 98)}%`;
+  el.pingStatusText.textContent = `Estado del servidor: ${statusText}`;
+  el.pingStatusText.className = `ping-status-text ${statusClass}`;
 }
 
 // ----------------------------------------------------
@@ -181,71 +161,7 @@ function renderPing(data) {
 // ----------------------------------------------------
 function renderLastUpdate(ts) {
   if (!ts) return;
-
-  el.lastUpdate.textContent =
-    new Date(ts).toLocaleString("es-ES");
-}
-
-// ----------------------------------------------------
-// PING HISTORY UPDATE
-// ----------------------------------------------------
-function updatePingHistory(value) {
-
-  pingHistory.push(value);
-
-  if (pingHistory.length > (CONFIG.pingHistorySize || 60)) {
-    pingHistory.shift();
-  }
-
-  drawPingChart();
-}
-
-// ----------------------------------------------------
-// DRAW CHART
-// ----------------------------------------------------
-function drawPingChart() {
-
-  if (!ctx) return;
-
-  const canvas = el.pingChart;
-
-  const w = canvas.width = canvas.offsetWidth;
-  const h = canvas.height = canvas.offsetHeight;
-
-  ctx.clearRect(0, 0, w, h);
-
-  const max = Math.max(...pingHistory, 50);
-
-  ctx.beginPath();
-  ctx.strokeStyle = "#58A6FF";
-  ctx.lineWidth = 2;
-
-  pingHistory.forEach((v, i) => {
-
-    const x = (i / (pingHistory.length - 1)) * w;
-    const y = h - (v / max) * h;
-
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-
-  ctx.stroke();
-}
-
-// ----------------------------------------------------
-// CLEAR CHART
-// ----------------------------------------------------
-function clearPingChart() {
-  pingHistory.fill(0);
-
-  if (!ctx) return;
-
-  const canvas = el.pingChart;
-
-  const w = canvas.width = canvas.offsetWidth;
-  const h = canvas.height = canvas.offsetHeight;
-
-  ctx.clearRect(0, 0, w, h);
+  el.lastUpdate.textContent = new Date(ts).toLocaleString("es-ES");
 }
 
 // ----------------------------------------------------
