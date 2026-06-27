@@ -161,13 +161,17 @@ function renderMOTD(motd) {
 // ----------------------------------------------------
 // PING + HISTORIAL
 // ----------------------------------------------------
-function renderPing(server) {
+function renderPing(data) {
+  const ping = data?.ping;
 
-  const ping = server?.ping;
+  if (ping == null) {
+    el.ping.textContent = "-- ms";
+    return;
+  }
 
-  const value = typeof ping === "number" ? Math.round(ping) : 0;
+  const value = Number(ping);
 
-  el.ping.textContent = `${value} ms`;
+  el.ping.textContent = `${value.toFixed(1)} ms`;
 
   updatePingHistory(value);
 }
