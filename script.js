@@ -45,7 +45,7 @@ function render(data) {
   renderIcon(server);
   renderPlayers(server.players);
   renderMOTD(server.motd);
-  renderPing(data);           // Cambiado para pasar todo el data
+  renderPing(data);
   renderLastUpdate(data.lastUpdate);
 }
 
@@ -68,11 +68,12 @@ function setOffline() {
   el.icon.removeAttribute("src");
   el.ping.textContent = "-- ms";
   el.pingStatusText.textContent = "Estado del servidor: Sin datos";
+  el.pingStatusText.className = "ping-status-text";
   el.pingArrow.style.left = "0%";
 }
 
 // ----------------------------------------------------
-// VERSION, ICON, PLAYERS, MOTD (sin cambios)
+// VERSION, ICON, PLAYERS, MOTD
 // ----------------------------------------------------
 function renderVersion(server) {
   el.version.textContent = server?.version?.name_clean || server?.version || "Unknown";
@@ -121,32 +122,34 @@ function renderMOTD(motd) {
 }
 
 // ----------------------------------------------------
-// NUEVA FUNCIÓN PING
+// PING STATUS (con nueva escala)
 // ----------------------------------------------------
 function renderPing(data) {
   const ping = data?.ping != null ? Number(data.ping) : 0;
-  
   el.ping.textContent = `${ping.toFixed(1)} ms`;
 
-  // Determinar posición de la flecha (0% a 100%)
   let position = 0;
   let statusText = "Injugable";
   let statusClass = "terrible";
 
-  if (ping <= 60) {
-    position = (ping / 60) * 25;           // 0-25%
+  if (ping <= 30) {
+    position = (ping / 30) * 20;           // 0-20%
+    statusText = "Excelente";
+    statusClass = "excellent";
+  } else if (ping <= 60) {
+    position = 20 + ((ping - 30) / 30) * 20; // 20-40%
     statusText = "Bueno";
     statusClass = "good";
   } else if (ping <= 150) {
-    position = 25 + ((ping - 60) / 90) * 25; // 25-50%
+    position = 40 + ((ping - 60) / 90) * 20; // 40-60%
     statusText = "Aceptable";
     statusClass = "acceptable";
   } else if (ping <= 250) {
-    position = 50 + ((ping - 150) / 100) * 25; // 50-75%
+    position = 60 + ((ping - 150) / 100) * 20; // 60-80%
     statusText = "Malo";
     statusClass = "bad";
   } else {
-    position = 75 + Math.min((ping - 250) / 100 * 25, 25); // 75-100%
+    position = 80 + Math.min((ping - 250) / 150 * 20, 20); // 80-100%
     statusText = "Injugable";
     statusClass = "terrible";
   }
