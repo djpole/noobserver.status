@@ -2,15 +2,12 @@
   --bg: #0D1117;
   --panel: #161B22;
   --border: #30363D;
-
   --text: #F0F6FC;
   --text-muted: #8B949E;
-
   --green: #2EA043;
   --red: #DA3633;
   --blue: #58A6FF;
   --yellow: #F2CC60;
-
   --radius: 14px;
 }
 
@@ -34,7 +31,7 @@ body {
   padding: 20px;
 }
 
-/* HEADER */
+/* HEADER (sin cambios) */
 .header {
   display: flex;
   justify-content: space-between;
@@ -59,19 +56,10 @@ body {
   image-rendering: pixelated;
 }
 
-.logo h1 {
-  font-size: 20px;
-  font-weight: 700;
-}
+.logo h1 { font-size: 20px; font-weight: 700; }
+.logo p { font-size: 12px; color: var(--text-muted); }
 
-.logo p {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.top-status {
-  text-align: right;
-}
+.top-status { text-align: right; }
 
 .status {
   font-weight: 700;
@@ -93,10 +81,7 @@ body {
   box-shadow: 0 0 10px rgba(218,54,51,0.4);
 }
 
-.version {
-  font-size: 12px;
-  color: var(--text-muted);
-}
+.version { font-size: 12px; color: var(--text-muted); }
 
 /* STATS */
 .stats {
@@ -124,7 +109,7 @@ body {
   font-weight: 700;
 }
 
-/* PROGRESS BAR */
+/* PROGRESS BAR (jugadores) */
 .bar {
   width: 100%;
   height: 8px;
@@ -141,18 +126,59 @@ body {
   transition: width 0.4s ease;
 }
 
-/* MOTD */
-.motd {
-  margin-bottom: 20px;
+/* NUEVA BARRA DE PING */
+.ping-status-container {
+  position: relative;
+  margin-top: 12px;
+  margin-bottom: 8px;
+  height: 28px;
 }
 
-#motd {
-  font-size: 14px;
-  color: var(--text);
-  line-height: 1.4;
+.ping-bar {
+  width: 100%;
+  height: 8px;
+  background: #0B0F14;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  top: 10px;
 }
 
-/* PLAYERS */
+.ping-bar-segment {
+  height: 100%;
+  float: left;
+}
+
+.ping-bar-segment.good { width: 25%; background: #2EA043; }
+.ping-bar-segment.acceptable { width: 25%; background: #F2CC60; }
+.ping-bar-segment.bad { width: 25%; background: #DA3633; }
+.ping-bar-segment.terrible { width: 25%; background: #8B949E; }
+
+.ping-arrow {
+  position: absolute;
+  top: 0;
+  font-size: 18px;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+  transition: left 0.4s ease;
+  left: 0%;
+}
+
+.ping-status-text {
+  font-size: 13px;
+  margin-top: 6px;
+  font-weight: 500;
+}
+
+.ping-status-text.good { color: #2EA043; }
+.ping-status-text.acceptable { color: #F2CC60; }
+.ping-status-text.bad { color: #DA3633; }
+.ping-status-text.terrible { color: #8B949E; }
+
+/* MOTD, PLAYERS, FOOTER (sin cambios) */
+.motd { margin-bottom: 20px; }
+#motd { font-size: 14px; color: var(--text); line-height: 1.4; }
+
 .players-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -171,9 +197,7 @@ body {
   transition: transform 0.2s ease;
 }
 
-.player:hover {
-  transform: scale(1.03);
-}
+.player:hover { transform: scale(1.03); }
 
 .player img {
   width: 28px;
@@ -181,12 +205,8 @@ body {
   border-radius: 6px;
 }
 
-.empty {
-  color: var(--text-muted);
-  font-size: 14px;
-}
+.empty { color: var(--text-muted); font-size: 14px; }
 
-/* FOOTER */
 footer {
   text-align: center;
   font-size: 12px;
@@ -196,17 +216,11 @@ footer {
 
 /* RESPONSIVE */
 @media (max-width: 768px) {
-  .stats {
-    grid-template-columns: 1fr;
-  }
-
+  .stats { grid-template-columns: 1fr; }
   .header {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
   }
-
-  .top-status {
-    text-align: left;
-  }
+  .top-status { text-align: left; }
 }
