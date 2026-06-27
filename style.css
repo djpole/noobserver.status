@@ -5,9 +5,6 @@
   --text: #F0F6FC;
   --text-muted: #8B949E;
   --green: #2EA043;
-  --red: #DA3633;
-  --blue: #58A6FF;
-  --yellow: #F2CC60;
   --radius: 14px;
 }
 
@@ -69,13 +66,13 @@ body {
 
 .status.online {
   background: rgba(46,160,67,0.15);
-  color: var(--green);
+  color: #2EA043;
   box-shadow: 0 0 10px rgba(46,160,67,0.4);
 }
 
 .status.offline {
   background: rgba(218,54,51,0.15);
-  color: var(--red);
+  color: #DA3633;
   box-shadow: 0 0 10px rgba(218,54,51,0.4);
 }
 
@@ -120,11 +117,11 @@ body {
 #players-bar {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, var(--green), var(--blue));
+  background: linear-gradient(90deg, #2EA043, #58A6FF);
   transition: width 0.4s ease;
 }
 
-/* BARRA DE PING */
+/* BARRA DE PING - CORREGIDA */
 .ping-status-container {
   position: relative;
   margin: 12px 0 8px 0;
@@ -161,22 +158,14 @@ body {
   transition: left 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
   left: 0%;
   z-index: 2;
-  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.5));
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
 }
 
 .ping-status-text {
   font-size: 13px;
   margin-top: 6px;
   font-weight: 500;
-  color: var(--text-muted);           /* Color muted como pediste */
-}
-
-.ping-status-text.excellent,
-.ping-status-text.good,
-.ping-status-text.acceptable,
-.ping-status-text.bad,
-.ping-status-text.terrible {
-  color: var(--text-muted);           /* Todos muted */
+  color: var(--text-muted);   /* Siempre muted */
 }
 
 /* MOTD, PLAYERS, FOOTER */
