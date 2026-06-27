@@ -18,7 +18,13 @@ const el = {
 };
 
 // ----------------------------------------------------
-// FETCH LOOP
+// ENDPOINTS
+// ----------------------------------------------------
+const PING_ENDPOINT =
+  "https://api.mcstatus.io/v2/status/java/noobserver.monsternodes.com";
+
+// ----------------------------------------------------
+// FETCH LOOP (datos servidor)
 // ----------------------------------------------------
 async function fetchData() {
   try {
@@ -26,9 +32,7 @@ async function fetchData() {
       cache: "no-store"
     });
 
-    if (!res.ok) {
-      throw new Error("HTTP error");
-    }
+    if (!res.ok) throw new Error("HTTP error");
 
     const data = await res.json();
     render(data);
@@ -40,7 +44,7 @@ async function fetchData() {
 }
 
 // ----------------------------------------------------
-// RENDER
+// RENDER PRINCIPAL
 // ----------------------------------------------------
 function render(data) {
 
@@ -56,18 +60,18 @@ function render(data) {
   renderIcon(server);
   renderPlayers(server.players);
   renderMOTD(server.motd);
-  renderPing(data);
   renderLastUpdate(data.lastUpdate);
+
+  // IMPORTANTE: ping ahora independiente
+  measurePing();
 }
 
 // ----------------------------------------------------
 // ONLINE / OFFLINE
 // ----------------------------------------------------
 function setOnline() {
-
   el.status.textContent = "ONLINE";
   el.status.className = "status online";
-
 }
 
 function setOffline() {
@@ -89,40 +93,34 @@ function setOffline() {
 
   el.ping.textContent = "-- ms";
 
-  el.pingStatusText.textContent =
-    "Estado del servidor: Sin datos";
-
-  // Siempre gris
-  el.pingStatusText.className = "ping-status-text";
-
-  // Flecha al inicio de la barra
   el.pingArrow.style.left = "2%";
 
+  el.pingStatusText.textContent =
+    "Estado de tu conexión: Sin datos";
+
+  el.pingStatusText.className =
+    "ping-status-text";
 }
 
 // ----------------------------------------------------
 // VERSION
 // ----------------------------------------------------
 function renderVersion(server) {
-
   el.version.textContent =
     server?.version?.name_clean ||
     server?.version ||
     "Unknown";
-
 }
 
 // ----------------------------------------------------
 // ICONO
 // ----------------------------------------------------
 function renderIcon(server) {
-
   if (server?.icon) {
     el.icon.src = server.icon;
   } else {
     el.icon.removeAttribute("src");
   }
-
 }
 
 // ----------------------------------------------------
@@ -149,12 +147,9 @@ function renderPlayers(players) {
   el.playersList.innerHTML = "";
 
   if (!list.length) {
-
     el.playersList.innerHTML =
       `<div class="empty">Sin jugadores conectados</div>`;
-
     return;
-
   }
 
   list.forEach(player => {
@@ -174,9 +169,7 @@ function renderPlayers(players) {
     div.appendChild(span);
 
     el.playersList.appendChild(div);
-
   });
-
 }
 
 // ----------------------------------------------------
@@ -187,26 +180,39 @@ function renderMOTD(motd) {
   if (!motd) return;
 
   if (typeof motd.html === "string") {
-
     el.motd.innerHTML = motd.html;
-
   } else if (motd.clean) {
-
     el.motd.textContent = motd.clean;
-
   }
-
 }
 
 // ----------------------------------------------------
-// PING
+// PING REAL DEL USUARIO
 // ----------------------------------------------------
-function renderPing(data) {
+async function measurePing() {
 
-  const ping =
-    data?.ping != null
-      ? Number(data.ping)
-      : 0;
+  try {
+    const t0 = performance.now();
+
+    await fetch(PING_ENDPOINT, {
+      cache: "no-store"
+    });
+
+    const t1 = performance.now();
+
+    const ping = t1 - t0;
+
+    renderPing(ping);
+
+  } catch (e) {
+    console.error("Ping error", e);
+  }
+}
+
+// ----------------------------------------------------
+// RENDER PING
+// ----------------------------------------------------
+function renderPing(ping) {
 
   el.ping.textContent =
     `${ping.toFixed(1)} ms`;
@@ -215,93 +221,53 @@ function renderPing(data) {
   let statusText = "Injugable";
 
   if (ping <= 30) {
-
-    // 0 - 20 %
     position = (ping / 30) * 20;
     statusText = "Excelente";
-
   }
 
   else if (ping <= 60) {
-
-    // 20 - 40 %
-    position =
-      20 +
-      ((ping - 30) / 30) * 20;
-
+    position = 20 + ((ping - 30) / 30) * 20;
     statusText = "Bueno";
-
   }
 
   else if (ping <= 150) {
-
-    // 40 - 60 %
-    position =
-      40 +
-      ((ping - 60) / 90) * 20;
-
+    position = 40 + ((ping - 60) / 90) * 20;
     statusText = "Aceptable";
-
   }
 
   else if (ping <= 250) {
-
-    // 60 - 80 %
-    position =
-      60 +
-      ((ping - 150) / 100) * 20;
-
+    position = 60 + ((ping - 150) / 100) * 20;
     statusText = "Malo";
-
   }
 
   else {
-
-    // 80 - 100 %
-    position =
-      80 +
-      Math.min(
-        ((ping - 250) / 200) * 20,
-        20
-      );
-
+    position = 80 + Math.min(((ping - 250) / 200) * 20, 20);
     statusText = "Injugable";
-
   }
 
-  // Evita salirse de la barra
   position = Math.max(2, Math.min(position, 98));
 
-  el.pingArrow.style.left =
-    `${position}%`;
+  el.pingArrow.style.left = `${position}%`;
 
   el.pingStatusText.textContent =
-    `Estado del servidor: ${statusText}`;
+    `Estado de tu conexión: ${statusText}`;
 
-  // Siempre gris
   el.pingStatusText.className =
     "ping-status-text";
-
 }
 
 // ----------------------------------------------------
 // ÚLTIMA ACTUALIZACIÓN
 // ----------------------------------------------------
 function renderLastUpdate(ts) {
-
   if (!ts) return;
 
   el.lastUpdate.textContent =
     new Date(ts).toLocaleString("es-ES");
-
 }
 
 // ----------------------------------------------------
-// INICIO
+// INIT
 // ----------------------------------------------------
 fetchData();
-
-setInterval(
-  fetchData,
-  CONFIG.refreshIntervalMs || 15000
-);
+setInterval(fetchData, CONFIG.refreshIntervalMs || 15000);
