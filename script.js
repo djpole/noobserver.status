@@ -24,25 +24,28 @@ const PING_ENDPOINT =
   "https://api.mcstatus.io/v2/status/java/noobserver.monsternodes.com";
 
 // ----------------------------------------------------
-// PING STATE (FINAL ESTABLE)
+// PING ENGINE (DESACOPLADO)
 // ----------------------------------------------------
 const PING_STATE = {
   samples: [],
-  warmup: 5,
   window: 7,
-  lastStable: null
+  lastStable: null,
+  ready: false
 };
 
-// reset al volver a pestaña
+// ----------------------------------------------------
+// VISIBILITY HANDLING
+// ----------------------------------------------------
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
     PING_STATE.samples = [];
     PING_STATE.lastStable = null;
+    PING_STATE.ready = false;
   }
 });
 
 // ----------------------------------------------------
-// FETCH LOOP (datos servidor)
+// FETCH LOOP (SERVIDOR - 15s)
 // ----------------------------------------------------
 async function fetchData() {
   try {
@@ -79,8 +82,6 @@ function render(data) {
   renderPlayers(server.players);
   renderMOTD(server.motd);
   renderLastUpdate(data.lastUpdate);
-
-  measurePing();
 }
 
 // ----------------------------------------------------
@@ -92,7 +93,6 @@ function setOnline() {
 }
 
 function setOffline() {
-
   el.status.textContent = "OFFLINE";
   el.status.className = "status offline";
 
@@ -104,14 +104,14 @@ function setOffline() {
 
   el.motd.innerHTML = "";
   el.version.textContent = "-";
-
   el.icon.removeAttribute("src");
 
   el.ping.textContent = "-- ms";
+
   el.pingArrow.style.left = "2%";
 
   el.pingStatusText.textContent =
-    "Estado de tu conexión: Sin datos";
+    "Estado de tu conexión: calculando...";
 }
 
 // ----------------------------------------------------
@@ -191,10 +191,9 @@ function renderMOTD(motd) {
 }
 
 // ----------------------------------------------------
-// PING (FINAL ESTABLE SIN DERIVA)
+// PING LOOP (CADA 5s INDEPENDIENTE)
 // ----------------------------------------------------
-async function measurePing() {
-
+async function pingLoop() {
   try {
     const t0 = performance.now();
 
@@ -205,27 +204,32 @@ async function measurePing() {
 
     const t1 = performance.now();
 
-    const rawPing = t1 - t0;
-    processPing(rawPing);
+    processPing(t1 - t0);
 
   } catch (e) {
     console.error("Ping error", e);
   }
 }
 
+// iniciar loop independiente
+setInterval(pingLoop, 5000);
+pingLoop(); // primera ejecución inmediata
+
 // ----------------------------------------------------
-// FILTRO ESTABLE (SIN CONTAMINACIÓN)
+// PING PROCESSING (SIN DERIVA + SIN WARMUP BLOQUEANTE)
 // ----------------------------------------------------
 function processPing(ping) {
 
-  // warmup inicial (evita valores de arranque)
-  if (PING_STATE.samples.length < PING_STATE.warmup) {
-    PING_STATE.samples.push(ping);
+  // primer valor siempre visible (evita UI congelada)
+  if (!PING_STATE.ready) {
+    PING_STATE.ready = true;
+    PING_STATE.lastStable = ping;
+    renderPing(ping);
     return;
   }
 
-  // filtro de spikes
-  if (PING_STATE.lastStable !== null) {
+  // filtro anti-spike
+  if (PING_STATE.lastStable) {
     const diff = Math.abs(ping - PING_STATE.lastStable);
 
     if (diff > PING_STATE.lastStable * 0.6) {
@@ -233,14 +237,13 @@ function processPing(ping) {
     }
   }
 
-  // guardar muestra
   PING_STATE.samples.push(ping);
 
   if (PING_STATE.samples.length > PING_STATE.window) {
     PING_STATE.samples.shift();
   }
 
-  // mediana (ANTI DERIVA)
+  // mediana (robusto, sin deriva)
   const sorted = [...PING_STATE.samples].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
 
@@ -294,7 +297,7 @@ function renderPing(ping) {
 }
 
 // ----------------------------------------------------
-// ÚLTIMA ACTUALIZACIÓN
+// LAST UPDATE
 // ----------------------------------------------------
 function renderLastUpdate(ts) {
   if (!ts) return;
