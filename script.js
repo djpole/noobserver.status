@@ -18,10 +18,12 @@ const el = {
 };
 
 // ----------------------------------------------------
-// PING STATE (nuevo)
+// ESTADO PING (nuevo sistema estable)
 // ----------------------------------------------------
-let lastAcceptedPing = null;
+let bootSamples = [];
 let pingHistory = [];
+let baselinePing = null;
+let pingInitialized = false;
 
 // ----------------------------------------------------
 // FETCH LOOP (datos servidor)
@@ -185,11 +187,10 @@ function renderMOTD(motd) {
 }
 
 // ----------------------------------------------------
-// PING MEJORADO
+// PING (SISTEMA ESTABLE)
 // ----------------------------------------------------
 async function measurePing() {
 
-  // 1. No medir en background
   if (document.hidden) return;
 
   try {
@@ -204,29 +205,57 @@ async function measurePing() {
 
     const ping = t1 - t0;
 
-    // 2. Filtrado de picos absurdos
-    if (lastAcceptedPing !== null) {
+    // ----------------------------------------------------
+    // BOOTSTRAP (3 muestras iniciales)
+    // ----------------------------------------------------
+    if (!pingInitialized) {
 
-      const ratio = ping / lastAcceptedPing;
-      const delta = ping - lastAcceptedPing;
+      bootSamples.push(ping);
 
-      if (ratio > 3 && delta > 100) {
-        return; // spike ignorado
+      if (bootSamples.length < 3) {
+        return;
       }
 
+      const sortedBoot = [...bootSamples].sort((a, b) => a - b);
+      baselinePing = sortedBoot[Math.floor(sortedBoot.length / 2)];
+
+      pingInitialized = true;
+
+      pingHistory.push(baselinePing);
+
+      renderPing(baselinePing);
+
+      return;
     }
 
-    lastAcceptedPing = ping;
+    // ----------------------------------------------------
+    // ANTI-SPIKE (contra baseline)
+    // ----------------------------------------------------
+    const ratio = ping / baselinePing;
 
-    // 3. Historial corto (mediana 3)
+    if (ratio > 3) {
+      return;
+    }
+
+    // ----------------------------------------------------
+    // HISTORIAL
+    // ----------------------------------------------------
     pingHistory.push(ping);
 
-    if (pingHistory.length > 3) {
+    if (pingHistory.length > 5) {
       pingHistory.shift();
     }
 
+    // ----------------------------------------------------
+    // MEDIANA
+    // ----------------------------------------------------
     const sorted = [...pingHistory].sort((a, b) => a - b);
     const median = sorted[Math.floor(sorted.length / 2)];
+
+    // ----------------------------------------------------
+    // BASALINE ADAPTATIVO SUAVE
+    // ----------------------------------------------------
+    baselinePing = (baselinePing * 0.8) + (median * 0.2);
 
     renderPing(median);
 
@@ -275,7 +304,7 @@ function renderPing(ping) {
 }
 
 // ----------------------------------------------------
-// ÚLTIMA ACTUALIZACIÓN
+// LAST UPDATE
 // ----------------------------------------------------
 function renderLastUpdate(ts) {
   if (!ts) return;
@@ -285,7 +314,7 @@ function renderLastUpdate(ts) {
 }
 
 // ----------------------------------------------------
-// VISIBILITY FIX (nuevo)
+// VISIBILITY FIX
 // ----------------------------------------------------
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
