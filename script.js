@@ -18,12 +18,28 @@ const el = {
 };
 
 // ----------------------------------------------------
-// ESTADO PING (nuevo sistema estable)
+// ENDPOINTS
 // ----------------------------------------------------
-let bootSamples = [];
-let pingHistory = [];
-let baselinePing = null;
-let pingInitialized = false;
+const PING_ENDPOINT =
+  "https://api.mcstatus.io/v2/status/java/noobserver.monsternodes.com";
+
+// ----------------------------------------------------
+// PING STATE (FINAL ESTABLE)
+// ----------------------------------------------------
+const PING_STATE = {
+  samples: [],
+  warmup: 5,
+  window: 7,
+  lastStable: null
+};
+
+// reset al volver a pestaña
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    PING_STATE.samples = [];
+    PING_STATE.lastStable = null;
+  }
+});
 
 // ----------------------------------------------------
 // FETCH LOOP (datos servidor)
@@ -87,20 +103,15 @@ function setOffline() {
     `<div class="empty">Sin jugadores conectados</div>`;
 
   el.motd.innerHTML = "";
-
   el.version.textContent = "-";
 
   el.icon.removeAttribute("src");
 
   el.ping.textContent = "-- ms";
-
   el.pingArrow.style.left = "2%";
 
   el.pingStatusText.textContent =
     "Estado de tu conexión: Sin datos";
-
-  el.pingStatusText.className =
-    "ping-status-text";
 }
 
 // ----------------------------------------------------
@@ -109,6 +120,7 @@ function setOffline() {
 function renderVersion(server) {
   el.version.textContent =
     server?.version?.name_clean ||
+    server?.version ||
     "Unknown";
 }
 
@@ -116,11 +128,8 @@ function renderVersion(server) {
 // ICONO
 // ----------------------------------------------------
 function renderIcon(server) {
-  if (server?.icon) {
-    el.icon.src = server.icon;
-  } else {
-    el.icon.removeAttribute("src");
-  }
+  if (server?.icon) el.icon.src = server.icon;
+  else el.icon.removeAttribute("src");
 }
 
 // ----------------------------------------------------
@@ -133,13 +142,9 @@ function renderPlayers(players) {
   const online = players.online ?? 0;
   const max = players.max ?? 20;
 
-  const list =
-    Array.isArray(players.list)
-      ? players.list
-      : [];
+  const list = Array.isArray(players.list) ? players.list : [];
 
-  el.playersCount.textContent =
-    `${online} / ${max}`;
+  el.playersCount.textContent = `${online} / ${max}`;
 
   el.playersBar.style.width =
     `${max ? Math.round((online / max) * 100) : 0}%`;
@@ -162,8 +167,7 @@ function renderPlayers(players) {
       `https://mc-heads.net/avatar/${player.uuid || player.name_raw}/40`;
 
     const span = document.createElement("span");
-    span.textContent =
-      player.name_raw || player.name_clean;
+    span.textContent = player.name_raw || player.name_clean;
 
     div.appendChild(img);
     div.appendChild(span);
@@ -187,77 +191,22 @@ function renderMOTD(motd) {
 }
 
 // ----------------------------------------------------
-// PING (SISTEMA ESTABLE)
+// PING (FINAL ESTABLE SIN DERIVA)
 // ----------------------------------------------------
 async function measurePing() {
 
-  if (document.hidden) return;
-
   try {
-
     const t0 = performance.now();
 
-    await fetch(CONFIG.endpoint, {
-      cache: "no-store"
+    await fetch(PING_ENDPOINT, {
+      cache: "no-store",
+      keepalive: true
     });
 
     const t1 = performance.now();
 
-    const ping = t1 - t0;
-
-    // ----------------------------------------------------
-    // BOOTSTRAP (3 muestras iniciales)
-    // ----------------------------------------------------
-    if (!pingInitialized) {
-
-      bootSamples.push(ping);
-
-      if (bootSamples.length < 3) {
-        return;
-      }
-
-      const sortedBoot = [...bootSamples].sort((a, b) => a - b);
-      baselinePing = sortedBoot[Math.floor(sortedBoot.length / 2)];
-
-      pingInitialized = true;
-
-      pingHistory.push(baselinePing);
-
-      renderPing(baselinePing);
-
-      return;
-    }
-
-    // ----------------------------------------------------
-    // ANTI-SPIKE (contra baseline)
-    // ----------------------------------------------------
-    const ratio = ping / baselinePing;
-
-    if (ratio > 3) {
-      return;
-    }
-
-    // ----------------------------------------------------
-    // HISTORIAL
-    // ----------------------------------------------------
-    pingHistory.push(ping);
-
-    if (pingHistory.length > 5) {
-      pingHistory.shift();
-    }
-
-    // ----------------------------------------------------
-    // MEDIANA
-    // ----------------------------------------------------
-    const sorted = [...pingHistory].sort((a, b) => a - b);
-    const median = sorted[Math.floor(sorted.length / 2)];
-
-    // ----------------------------------------------------
-    // BASALINE ADAPTATIVO SUAVE
-    // ----------------------------------------------------
-    baselinePing = (baselinePing * 0.8) + (median * 0.2);
-
-    renderPing(median);
+    const rawPing = t1 - t0;
+    processPing(rawPing);
 
   } catch (e) {
     console.error("Ping error", e);
@@ -265,12 +214,52 @@ async function measurePing() {
 }
 
 // ----------------------------------------------------
+// FILTRO ESTABLE (SIN CONTAMINACIÓN)
+// ----------------------------------------------------
+function processPing(ping) {
+
+  // warmup inicial (evita valores de arranque)
+  if (PING_STATE.samples.length < PING_STATE.warmup) {
+    PING_STATE.samples.push(ping);
+    return;
+  }
+
+  // filtro de spikes
+  if (PING_STATE.lastStable !== null) {
+    const diff = Math.abs(ping - PING_STATE.lastStable);
+
+    if (diff > PING_STATE.lastStable * 0.6) {
+      return;
+    }
+  }
+
+  // guardar muestra
+  PING_STATE.samples.push(ping);
+
+  if (PING_STATE.samples.length > PING_STATE.window) {
+    PING_STATE.samples.shift();
+  }
+
+  // mediana (ANTI DERIVA)
+  const sorted = [...PING_STATE.samples].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+
+  const stablePing =
+    sorted.length % 2 === 0
+      ? (sorted[mid - 1] + sorted[mid]) / 2
+      : sorted[mid];
+
+  PING_STATE.lastStable = stablePing;
+
+  renderPing(stablePing);
+}
+
+// ----------------------------------------------------
 // RENDER PING
 // ----------------------------------------------------
 function renderPing(ping) {
 
-  el.ping.textContent =
-    `${ping.toFixed(1)} ms`;
+  el.ping.textContent = `${ping.toFixed(1)} ms`;
 
   let position = 0;
   let statusText = "Injugable";
@@ -278,16 +267,20 @@ function renderPing(ping) {
   if (ping <= 30) {
     position = (ping / 30) * 20;
     statusText = "Excelente";
-  } else if (ping <= 60) {
+  }
+  else if (ping <= 60) {
     position = 20 + ((ping - 30) / 30) * 20;
     statusText = "Bueno";
-  } else if (ping <= 150) {
+  }
+  else if (ping <= 150) {
     position = 40 + ((ping - 60) / 90) * 20;
     statusText = "Aceptable";
-  } else if (ping <= 250) {
+  }
+  else if (ping <= 250) {
     position = 60 + ((ping - 150) / 100) * 20;
     statusText = "Malo";
-  } else {
+  }
+  else {
     position = 80 + Math.min(((ping - 250) / 200) * 20, 20);
     statusText = "Injugable";
   }
@@ -298,13 +291,10 @@ function renderPing(ping) {
 
   el.pingStatusText.textContent =
     `Estado de tu conexión: ${statusText}`;
-
-  el.pingStatusText.className =
-    "ping-status-text";
 }
 
 // ----------------------------------------------------
-// LAST UPDATE
+// ÚLTIMA ACTUALIZACIÓN
 // ----------------------------------------------------
 function renderLastUpdate(ts) {
   if (!ts) return;
@@ -312,15 +302,6 @@ function renderLastUpdate(ts) {
   el.lastUpdate.textContent =
     new Date(ts).toLocaleString("es-ES");
 }
-
-// ----------------------------------------------------
-// VISIBILITY FIX
-// ----------------------------------------------------
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) {
-    measurePing();
-  }
-});
 
 // ----------------------------------------------------
 // INIT
