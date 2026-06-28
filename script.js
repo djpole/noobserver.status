@@ -18,10 +18,10 @@ const el = {
 };
 
 // ----------------------------------------------------
-// ENDPOINTS
+// PING STATE (nuevo)
 // ----------------------------------------------------
-const PING_ENDPOINT =
-  "https://api.mcstatus.io/v2/status/java/noobserver.monsternodes.com";
+let lastAcceptedPing = null;
+let pingHistory = [];
 
 // ----------------------------------------------------
 // FETCH LOOP (datos servidor)
@@ -62,7 +62,6 @@ function render(data) {
   renderMOTD(server.motd);
   renderLastUpdate(data.lastUpdate);
 
-  // IMPORTANTE: ping ahora independiente
   measurePing();
 }
 
@@ -108,7 +107,6 @@ function setOffline() {
 function renderVersion(server) {
   el.version.textContent =
     server?.version?.name_clean ||
-    server?.version ||
     "Unknown";
 }
 
@@ -187,14 +185,18 @@ function renderMOTD(motd) {
 }
 
 // ----------------------------------------------------
-// PING REAL DEL USUARIO
+// PING MEJORADO
 // ----------------------------------------------------
 async function measurePing() {
 
+  // 1. No medir en background
+  if (document.hidden) return;
+
   try {
+
     const t0 = performance.now();
 
-    await fetch(PING_ENDPOINT, {
+    await fetch(CONFIG.endpoint, {
       cache: "no-store"
     });
 
@@ -202,7 +204,31 @@ async function measurePing() {
 
     const ping = t1 - t0;
 
-    renderPing(ping);
+    // 2. Filtrado de picos absurdos
+    if (lastAcceptedPing !== null) {
+
+      const ratio = ping / lastAcceptedPing;
+      const delta = ping - lastAcceptedPing;
+
+      if (ratio > 3 && delta > 100) {
+        return; // spike ignorado
+      }
+
+    }
+
+    lastAcceptedPing = ping;
+
+    // 3. Historial corto (mediana 3)
+    pingHistory.push(ping);
+
+    if (pingHistory.length > 3) {
+      pingHistory.shift();
+    }
+
+    const sorted = [...pingHistory].sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+
+    renderPing(median);
 
   } catch (e) {
     console.error("Ping error", e);
@@ -223,24 +249,16 @@ function renderPing(ping) {
   if (ping <= 30) {
     position = (ping / 30) * 20;
     statusText = "Excelente";
-  }
-
-  else if (ping <= 60) {
+  } else if (ping <= 60) {
     position = 20 + ((ping - 30) / 30) * 20;
     statusText = "Bueno";
-  }
-
-  else if (ping <= 150) {
+  } else if (ping <= 150) {
     position = 40 + ((ping - 60) / 90) * 20;
     statusText = "Aceptable";
-  }
-
-  else if (ping <= 250) {
+  } else if (ping <= 250) {
     position = 60 + ((ping - 150) / 100) * 20;
     statusText = "Malo";
-  }
-
-  else {
+  } else {
     position = 80 + Math.min(((ping - 250) / 200) * 20, 20);
     statusText = "Injugable";
   }
@@ -265,6 +283,15 @@ function renderLastUpdate(ts) {
   el.lastUpdate.textContent =
     new Date(ts).toLocaleString("es-ES");
 }
+
+// ----------------------------------------------------
+// VISIBILITY FIX (nuevo)
+// ----------------------------------------------------
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    measurePing();
+  }
+});
 
 // ----------------------------------------------------
 // INIT
