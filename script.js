@@ -18,13 +18,13 @@ const el = {
 };
 
 // ----------------------------------------------------
-// ENDPOINTS
+// ENDPOINT SERVIDOR
 // ----------------------------------------------------
 const PING_ENDPOINT =
   "https://api.mcstatus.io/v2/status/java/noobserver.monsternodes.com";
 
 // ----------------------------------------------------
-// FETCH LOOP (DATOS SERVIDOR) — INDEPENDIENTE
+// FETCH LOOP (DATOS SERVIDOR)
 // ----------------------------------------------------
 async function fetchData() {
   try {
@@ -44,7 +44,7 @@ async function fetchData() {
 }
 
 // ----------------------------------------------------
-// RENDER PRINCIPAL
+// RENDER
 // ----------------------------------------------------
 function render(data) {
 
@@ -61,8 +61,6 @@ function render(data) {
   renderPlayers(server.players);
   renderMOTD(server.motd);
   renderLastUpdate(data.lastUpdate);
-
-  // ping NO depende del refresh
 }
 
 // ----------------------------------------------------
@@ -188,24 +186,25 @@ function renderLastUpdate(ts) {
 }
 
 // ====================================================
-// PING SYSTEM (TOTALMENTE INDEPENDIENTE)
+// PING SYSTEM CORREGIDO (VERSIÓN FINAL REAL)
 // ====================================================
 
 const pingState = {
+  discard: 0,
   samples: [],
   started: false
 };
 
 const PING_CONFIG = {
   interval: 5000,
-  warmup: 8,
-  stabilize: 20,
+  discardSamples: 6,     // clave: elimina cold start real
+  warmupSamples: 8,
   maxValid: 500,
   spikeRatio: 2.0
 };
 
 // ----------------------------------------------------
-// INIT PING UI
+// INIT UI PING
 // ----------------------------------------------------
 function resetPingUI() {
   el.ping.textContent = "-- ms";
@@ -250,22 +249,27 @@ async function measurePing() {
 
     if (ping <= 0 || ping > PING_CONFIG.maxValid) return;
 
-    addSample(ping);
-    updatePing();
+    // ------------------------------------------------
+    // DISCARD REAL (CRÍTICO)
+    // ------------------------------------------------
+    if (pingState.discard < PING_CONFIG.discardSamples) {
+      pingState.discard++;
+      return;
+    }
+
+    // ------------------------------------------------
+    // CAPTURE
+    // ------------------------------------------------
+    pingState.samples.push(ping);
+
+    if (pingState.samples.length > 50) {
+      pingState.samples.shift();
+    }
+
+    updatePingUI();
 
   } catch (e) {
     console.error("Ping error", e);
-  }
-}
-
-// ----------------------------------------------------
-// BUFFER
-// ----------------------------------------------------
-function addSample(v) {
-  pingState.samples.push(v);
-
-  if (pingState.samples.length > 50) {
-    pingState.samples.shift();
   }
 }
 
@@ -288,13 +292,13 @@ function filterOutliers(samples, base) {
 }
 
 // ----------------------------------------------------
-// UPDATE UI
+// UPDATE UI PING
 // ----------------------------------------------------
-function updatePing() {
+function updatePingUI() {
 
   const s = pingState.samples;
 
-  if (s.length < PING_CONFIG.warmup) {
+  if (s.length < PING_CONFIG.warmupSamples) {
     el.ping.textContent = "-- ms";
     el.pingStatusText.textContent =
       "Estado de tu conexión: calculando...";
@@ -303,7 +307,6 @@ function updatePing() {
 
   const base = median(s);
   const filtered = filterOutliers(s, base);
-
   const value = median(filtered);
 
   el.ping.textContent = `${value.toFixed(1)} ms`;
@@ -342,5 +345,5 @@ function updatePing() {
 fetchData();
 setInterval(fetchData, CONFIG.refreshIntervalMs || 15000);
 
-// 🔥 IMPORTANTE: ping independiente del refresh
+// 🔥 PING TOTALMENTE INDEPENDIENTE
 startPingLoop();
