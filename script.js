@@ -120,7 +120,7 @@ function renderIcon(server) {
 // ----------------------------------------------------
 function renderPlayers(players) {
 
-  if (!players) return;
+  players = players || {};
 
   const online = players.online ?? 0;
   const max = players.max ?? 20;
@@ -169,12 +169,14 @@ function renderPlayers(players) {
 // ----------------------------------------------------
 function renderMOTD(motd) {
 
-  if (!motd) return;
+  if (!motd) { el.motd.innerHTML = ""; return; }
 
   if (typeof motd.html === "string") {
     el.motd.innerHTML = motd.html;
-  } else if (motd.clean) {
+  } else if (typeof motd.clean === "string") {
     el.motd.textContent = motd.clean;
+  } else {
+    el.motd.innerHTML = "";
   }
 }
 
@@ -202,7 +204,8 @@ const PING_CONFIG = {
   interval: 5000,
   discardSamples: 6,     // clave: elimina cold start real
   warmupSamples: 8,
-  maxValid: 500,
+  maxValid: 2000,        // techo alto: una conexión lenta real (500-2000 ms)
+                         // debe marcar "Injugable", no quedarse en "calculando..."
   spikeRatio: 2.0
 };
 
@@ -315,6 +318,8 @@ function updatePingUI() {
   const base = median(s);
   const filtered = filterOutliers(s, base);
   const value = median(filtered);
+
+  if (!isFinite(value)) return;
 
   el.ping.textContent = `${value.toFixed(1)} ms`;
 

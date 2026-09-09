@@ -36,6 +36,11 @@ html, body { height: 100%; font-family: var(--font); color: var(--text); backgro
   pointer-events: none;
 }
 
+/* Marcador invisible sobre el recuadro del portal. Hijo de .hero, así que
+   hereda su transform (zoom/pan). scene.js lo coloca cada frame con
+   matemática de "background cover"; sirve de zona de clic y origen de la onda. */
+#portal { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
+
 .haze {
   position: absolute; inset: 0; pointer-events: none; z-index: 2;
   background:
@@ -226,6 +231,13 @@ html, body { height: 100%; font-family: var(--font); color: var(--text); backgro
   transition: opacity 0.6s ease; text-align: center;
 }
 .hint.fade { opacity: 0; }
+
+/* ---------- Reducir movimiento ------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  /* fuera el movimiento ambiental; la onda del clic (transitoria) se deja */
+  .mote, .spark, .status { animation: none !important; }
+  #players-bar, .ping-arrow, .hint { transition: none !important; }
+}
 
 /* ---------- Móvil / panel estrecho -------------------------- */
 @media (max-width: 900px) {
