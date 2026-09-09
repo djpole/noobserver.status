@@ -207,6 +207,10 @@ const PING_CONFIG = {
 // INIT UI PING
 // ----------------------------------------------------
 function resetPingUI() {
+  // El ping mide la conexión del visitante, no el estado del server MC.
+  // Tras el arranque (ya hay lecturas) no se borra nunca: si el server
+  // cae, setOffline() no debe dejar el ping en "-- ms".
+  if (pingState.samples.length >= PING_CONFIG.warmupSamples) return;
   el.ping.textContent = "-- ms";
   el.pingArrow.style.left = "2%";
   el.pingStatusText.textContent =
