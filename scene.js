@@ -39,7 +39,7 @@
   var IMG_W = 1920, IMG_H = 1080;
   // Cuadrado interior de cristales violetas + su marco de obsidiana
   // (sin el remate triangular de arriba).
-  var PORTAL = { x0: 0.457, y0: 0.236, x1: 0.545, y1: 0.372 };
+  var PORTAL = { x0: 0.451, y0: 0.230, x1: 0.551, y1: 0.375 };
 
   // Coloca #portal (hijo de #hero → hereda su transform) sobre el recuadro
   // real del portal, replicando la matemática de "background-size: cover".
