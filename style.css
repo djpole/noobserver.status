@@ -232,13 +232,6 @@ html, body { height: 100%; font-family: var(--font); color: var(--text); backgro
 }
 .hint.fade { opacity: 0; }
 
-/* ---------- Reducir movimiento ------------------------------ */
-@media (prefers-reduced-motion: reduce) {
-  /* fuera el movimiento ambiental; la onda del clic (transitoria) se deja */
-  .mote, .spark, .status { animation: none !important; }
-  #players-bar, .ping-arrow, .hint { transition: none !important; }
-}
-
 /* ---------- Móvil / panel estrecho -------------------------- */
 @media (max-width: 900px) {
   html, body, .viewer { overflow-y: auto; }

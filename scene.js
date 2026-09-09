@@ -17,9 +17,6 @@
 
   if (!viewer || !hero) return;   // sin lo mínimo no hay escena
 
-  // Con "reducir movimiento": sin brasas, sin estela del ratón y sin
-  // mouse-look (parallax). El clic en el portal y su onda SÍ se mantienen
-  // (efecto puntual disparado por el usuario, no movimiento ambiental).
   var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   hero.style.backgroundImage = "url('" + (window.HERO_IMG || "pano/hero.jpg") + "')";
@@ -40,7 +37,9 @@
   // Fracciones de la imagen 1920x1080 (medido sobre la web publicada).
   // Cambiar SOLO estos 4 números si hay que reajustar la zona del portal.
   var IMG_W = 1920, IMG_H = 1080;
-  var PORTAL = { x0: 0.452, y0: 0.212, x1: 0.560, y1: 0.400 };
+  // Cuadrado interior de cristales violetas + su marco de obsidiana
+  // (sin el remate triangular de arriba).
+  var PORTAL = { x0: 0.457, y0: 0.236, x1: 0.545, y1: 0.372 };
 
   // Coloca #portal (hijo de #hero → hereda su transform) sobre el recuadro
   // real del portal, replicando la matemática de "background-size: cover".
@@ -59,9 +58,10 @@
   var tx = 0, ty = 0, mx = 0, my = 0;
   var zoom = reduce ? ZTGT : ZTGT + 0.1;
 
-  // --- brasas del portal en dos planos (solo si hay movimiento) ------
+  // brasas del portal en dos planos: "lejanas" sobre la boca (se mueven
+  // casi como el portal) y "de detrás" sobre el arco (se mueven menos).
   var dustFar = null, dustBehind = null;
-  if (dust && !reduce) {
+  if (dust) {
     dustBehind = document.createElement("div"); dustBehind.className = "dust-layer dust-behind";
     dustFar    = document.createElement("div"); dustFar.className    = "dust-layer dust-far";
 
@@ -136,9 +136,8 @@
     i.style.left = (r.left + r.width / 2) + "px";
     i.style.top  = (r.top + r.height / 2) + "px";
     ripples.appendChild(i);
-    // animationend + red de seguridad por si la animación está desactivada
     i.addEventListener("animationend", function () { i.remove(); });
-    setTimeout(function () { i.remove(); }, 1200);
+    setTimeout(function () { i.remove(); }, 1200);   // red de seguridad anti-fuga
   }
   viewer.addEventListener("click", function (e) {
     var r = portalRect();
@@ -146,32 +145,25 @@
     if (e.clientX >= r.left && e.clientX <= r.right &&
         e.clientY >= r.top  && e.clientY <= r.bottom) spawnRipple();
   });
+
+  window.addEventListener("mousemove", function (e) {
+    tx = e.clientX / window.innerWidth - 0.5;
+    ty = e.clientY / window.innerHeight - 0.5;
+    spark(e.clientX, e.clientY);
+    if (hint) hint.classList.add("fade");
+  });
+  document.addEventListener("mouseleave", function () { tx = 0; ty = 0; });
+  window.addEventListener("blur", function () { tx = 0; ty = 0; });
+  window.addEventListener("touchmove", function (e) {
+    if (!e.touches[0]) return;
+    tx = e.touches[0].clientX / window.innerWidth - 0.5;
+    ty = e.touches[0].clientY / window.innerHeight - 0.5;
+    spark(e.touches[0].clientX, e.touches[0].clientY);
+    if (hint) hint.classList.add("fade");
+  }, { passive: true });
   viewer.addEventListener("selectstart", function (e) { e.preventDefault(); });
   viewer.addEventListener("dragstart", function (e) { e.preventDefault(); });
 
-  // mouse-look / estela: solo si el usuario no pide reducir movimiento
-  if (!reduce) {
-    window.addEventListener("mousemove", function (e) {
-      tx = e.clientX / window.innerWidth - 0.5;
-      ty = e.clientY / window.innerHeight - 0.5;
-      spark(e.clientX, e.clientY);
-      if (hint) hint.classList.add("fade");
-    });
-    document.addEventListener("mouseleave", function () { tx = 0; ty = 0; });
-    window.addEventListener("blur", function () { tx = 0; ty = 0; });
-    window.addEventListener("touchmove", function (e) {
-      if (!e.touches[0]) return;
-      tx = e.touches[0].clientX / window.innerWidth - 0.5;
-      ty = e.touches[0].clientY / window.innerHeight - 0.5;
-      spark(e.touches[0].clientX, e.touches[0].clientY);
-      if (hint) hint.classList.add("fade");
-    }, { passive: true });
-  } else if (hint) {
-    hint.classList.add("fade");   // sin mouse-look el aviso sobra
-  }
-
-  // Bucle: mantiene #portal alineado y aplica el mouse-look. Con "reducir
-  // movimiento" tx/ty quedan a 0, así que la escena queda en reposo.
   (function loop() {
     mx += (tx - mx) * 0.07;
     my += (ty - my) * 0.07;
