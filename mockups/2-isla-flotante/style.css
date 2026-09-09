@@ -1,0 +1,137 @@
+/* ==========================================================================
+   NOOBSERVER STATUS — Diseño 2 "Isla flotante"
+   Fondo WebGL con three.js vendorizado en local. HUD en HTML por encima.
+   ========================================================================== */
+
+:root {
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --glass: rgba(10, 16, 26, 0.55);
+  --glass-line: rgba(255, 255, 255, 0.12);
+  --text: #eef4fb;
+  --text-dim: #9fb2c4;
+  --accent: #7fd0ff;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { min-height: 100%; font-family: var(--font); color: var(--text); background: #0b1020; }
+body { overflow-x: hidden; }
+
+#scene-canvas {
+  position: fixed; inset: 0; z-index: 0;
+  width: 100vw; height: 100vh; display: block;
+}
+/* fondo de reserva si WebGL no está disponible */
+#scene-canvas.no-webgl {
+  background: linear-gradient(180deg, #ffce9e 0%, #ff9a76 25%, #a86a9c 55%, #2c2f63 85%, #11142b 100%);
+}
+.vignette {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 20%, transparent 40%, rgba(4, 6, 14, 0.55) 100%);
+}
+
+/* ---------- HUD ------------------------------------------------------ */
+.hud {
+  position: relative;
+  z-index: 2;
+  width: min(880px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 6vh 0 8vh;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card, .hud-head {
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  border-radius: 16px;
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.7);
+}
+
+.hud-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; padding: 18px 20px;
+}
+.brand { display: flex; align-items: center; gap: 14px; }
+.icon-wrap {
+  width: 58px; height: 58px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-line);
+  display: grid; place-items: center; overflow: hidden;
+}
+#server-icon { width: 50px; height: 50px; image-rendering: pixelated; display: block; }
+#server-icon:not([src]) { display: none; }
+.brand-text h1 { font-size: 24px; color: #fff; letter-spacing: 0.4px; }
+.brand-text p { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); }
+
+.status-col { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.status {
+  font-size: 12px; font-weight: 700; letter-spacing: 2px;
+  padding: 6px 13px; border-radius: 999px; border: 1px solid currentColor;
+}
+.status.online { color: #6df0a5; box-shadow: 0 0 22px -4px #6df0a5; }
+.status.offline { color: #ff6a86; box-shadow: 0 0 22px -6px #ff6a86; }
+.version { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
+.card { padding: 18px 20px; }
+.label { font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+.value { font-size: 30px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
+.stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+.bar { margin-top: 12px; height: 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+#players-bar {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, #6df0a5, #7fd0ff);
+  box-shadow: 0 0 16px 0 rgba(109, 240, 165, 0.6);
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ping-status-container { position: relative; margin-top: 14px; height: 26px; }
+.ping-bar {
+  position: absolute; left: 0; right: 0; top: 6px; height: 12px;
+  display: flex; border-radius: 999px; overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+}
+.ping-bar-segment { flex: 1; }
+.ping-bar-segment.excellent  { background: #34f07a; }
+.ping-bar-segment.good       { background: #b6f034; }
+.ping-bar-segment.acceptable { background: #f0d534; }
+.ping-bar-segment.bad        { background: #f0902f; }
+.ping-bar-segment.terrible   { background: #f0405f; }
+.ping-arrow {
+  position: absolute; top: -4px; left: 2%;
+  transform: translateX(-50%);
+  color: #fff; font-size: 15px;
+  text-shadow: 0 0 10px #fff, 0 0 20px var(--accent);
+  transition: left 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ping-status-text { margin-top: 8px; font-size: 12px; color: var(--text-dim); }
+
+.motd-card #motd { font-size: 14px; line-height: 1.6; color: #dfeaf3; white-space: pre-wrap; word-break: break-word; }
+
+.players-list {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+.players-list .empty { color: var(--text-dim); font-size: 13px; padding: 6px 0; }
+.player {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+.player:hover { transform: translateY(-2px); background: rgba(255, 255, 255, 0.1); }
+.player img { width: 30px; height: 30px; border-radius: 8px; image-rendering: pixelated; background: #10141c; }
+.player span { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+footer { text-align: center; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); }
+#last-update { color: var(--accent); }
+
+@media (max-width: 620px) {
+  .stat-row { grid-template-columns: 1fr; }
+  .value { font-size: 24px; }
+}

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Noobserver Status · Isla flotante</title>
+  <link rel="icon" type="image/png" href="../../favicon.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <canvas id="scene-canvas" aria-hidden="true"></canvas>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <div class="hud">
+    <header class="hud-head">
+      <div class="brand">
+        <div class="icon-wrap"><img id="server-icon" alt="server icon" /></div>
+        <div class="brand-text">
+          <h1>Noobserver</h1>
+          <p>Minecraft Survival Server</p>
+        </div>
+      </div>
+      <div class="status-col">
+        <div id="status" class="status offline">OFFLINE</div>
+        <div id="version" class="version">-</div>
+      </div>
+    </header>
+
+    <section class="card motd-card">
+      <div class="label">Mensaje del servidor</div>
+      <div id="motd"></div>
+    </section>
+
+    <div class="stat-row">
+      <section class="card">
+        <div class="label">Jugadores</div>
+        <div class="value" id="players-count">0 / 20</div>
+        <div class="bar"><div id="players-bar"></div></div>
+      </section>
+
+      <section class="card">
+        <div class="label">Ping</div>
+        <div class="value" id="ping-value">-- ms</div>
+        <div class="ping-status-container">
+          <div class="ping-bar">
+            <div class="ping-bar-segment excellent"></div>
+            <div class="ping-bar-segment good"></div>
+            <div class="ping-bar-segment acceptable"></div>
+            <div class="ping-bar-segment bad"></div>
+            <div class="ping-bar-segment terrible"></div>
+          </div>
+          <div id="ping-arrow" class="ping-arrow">▼</div>
+        </div>
+        <div id="ping-status-text" class="ping-status-text">Estado de tu conexión: -</div>
+      </section>
+    </div>
+
+    <section class="card players">
+      <div class="label">Jugadores conectados</div>
+      <div id="players-list" class="players-list">
+        <div class="empty">Sin jugadores conectados</div>
+      </div>
+    </section>
+
+    <footer>
+      <div>Última actualización: <span id="last-update">--</span></div>
+    </footer>
+  </div>
+
+  <!-- Three.js vendorizado en local (sin CDN, sin nube) -->
+  <script src="vendor/three.min.js"></script>
+  <!-- Escena 3D de fondo (solo decoración, lee los datos, no los modifica) -->
+  <script src="scene.js"></script>
+
+  <!-- Lógica original SIN modificar -->
+  <script src="config.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

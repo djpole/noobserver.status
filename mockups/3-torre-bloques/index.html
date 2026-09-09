@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Noobserver Status · Torre de bloques</title>
+  <link rel="icon" type="image/png" href="../../favicon.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="world">
+    <div class="sky" aria-hidden="true"></div>
+    <div class="sun" aria-hidden="true"></div>
+
+    <div class="stage-wrap" id="stageWrap">
+      <div class="stage" id="stage">
+        <div class="ground" aria-hidden="true"></div>
+
+        <!-- BLOQUE: SERVIDOR -->
+        <div class="block block--grass">
+          <div class="slab" aria-hidden="true"></div>
+          <div class="panel">
+            <div class="brand">
+              <div class="icon-wrap"><img id="server-icon" alt="server icon" /></div>
+              <div>
+                <h1>Noobserver</h1>
+                <p>Minecraft Survival Server</p>
+              </div>
+            </div>
+            <div class="status-col">
+              <div id="status" class="status offline">OFFLINE</div>
+              <div id="version" class="version">-</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BLOQUE: MOTD -->
+        <div class="block block--stone wide">
+          <div class="slab" aria-hidden="true"></div>
+          <div class="panel">
+            <div class="label">Mensaje del servidor</div>
+            <div id="motd"></div>
+          </div>
+        </div>
+
+        <!-- BLOQUE: JUGADORES -->
+        <div class="block block--grass">
+          <div class="slab" aria-hidden="true"></div>
+          <div class="panel">
+            <div class="label">Jugadores</div>
+            <div class="value" id="players-count">0 / 20</div>
+            <div class="bar"><div id="players-bar"></div></div>
+          </div>
+        </div>
+
+        <!-- BLOQUE: PING -->
+        <div class="block block--diamond">
+          <div class="slab" aria-hidden="true"></div>
+          <div class="panel">
+            <div class="label">Ping</div>
+            <div class="value" id="ping-value">-- ms</div>
+            <div class="ping-status-container">
+              <div class="ping-bar">
+                <div class="ping-bar-segment excellent"></div>
+                <div class="ping-bar-segment good"></div>
+                <div class="ping-bar-segment acceptable"></div>
+                <div class="ping-bar-segment bad"></div>
+                <div class="ping-bar-segment terrible"></div>
+              </div>
+              <div id="ping-arrow" class="ping-arrow">▼</div>
+            </div>
+            <div id="ping-status-text" class="ping-status-text">Estado de tu conexión: -</div>
+          </div>
+        </div>
+
+        <!-- BLOQUE: LISTA DE JUGADORES -->
+        <div class="block block--stone wide tall">
+          <div class="slab" aria-hidden="true"></div>
+          <div class="panel">
+            <div class="label">Jugadores conectados</div>
+            <div id="players-list" class="players-list">
+              <div class="empty">Sin jugadores conectados</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BLOQUE: FOOTER -->
+        <div class="block block--bedrock wide thin">
+          <div class="slab" aria-hidden="true"></div>
+          <div class="panel">
+            <div>Última actualización: <span id="last-update">--</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="ctrl" id="toggleSpin" type="button">⏸ Pausar giro</button>
+    <div class="hint">Arrastra para girar la torre</div>
+  </div>
+
+  <!-- Lógica original SIN modificar -->
+  <script src="config.js"></script>
+  <script src="script.js"></script>
+
+  <!-- Giro de la torre (solo efecto visual) -->
+  <script>
+    (function () {
+      var stage = document.getElementById("stage");
+      var wrap = document.getElementById("stageWrap");
+      var btn = document.getElementById("toggleSpin");
+      if (!stage) return;
+
+      var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var rx = 14, ry = 0, auto = 0;
+      var spinning = !reduce;
+      var dragging = false, lastX = 0, lastY = 0;
+
+      function apply() {
+        stage.style.transform =
+          "rotateX(" + rx.toFixed(2) + "deg) rotateY(" + ry.toFixed(2) + "deg)";
+      }
+      (function loop() {
+        if (spinning && !dragging) {
+          auto += 0.010;
+          ry = Math.sin(auto) * 18;
+        }
+        apply();
+        requestAnimationFrame(loop);
+      })();
+
+      btn.addEventListener("click", function () {
+        spinning = !spinning;
+        btn.textContent = spinning ? "⏸ Pausar giro" : "▶ Reanudar giro";
+      });
+
+      function down(x, y) { dragging = true; lastX = x; lastY = y; }
+      function move(x, y) {
+        if (!dragging) return;
+        ry += (x - lastX) * 0.45;
+        rx = Math.max(-8, Math.min(48, rx - (y - lastY) * 0.3));
+        lastX = x; lastY = y;
+      }
+      function up() { dragging = false; }
+      wrap.addEventListener("mousedown", function (e) { down(e.clientX, e.clientY); });
+      window.addEventListener("mousemove", function (e) { move(e.clientX, e.clientY); });
+      window.addEventListener("mouseup", up);
+      wrap.addEventListener("touchstart", function (e) { down(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+      window.addEventListener("touchmove", function (e) { move(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+      window.addEventListener("touchend", up);
+    })();
+  </script>
+</body>
+</html>
