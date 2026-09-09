@@ -175,11 +175,11 @@ html, body { height: 100%; font-family: var(--font); color: var(--text); backgro
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
 }
 .ping-bar-segment { flex: 1; }
-.ping-bar-segment.excellent  { background: #34f07a; }
-.ping-bar-segment.good       { background: #b6f034; }
-.ping-bar-segment.acceptable { background: #f0d534; }
-.ping-bar-segment.bad        { background: #f0902f; }
-.ping-bar-segment.terrible   { background: #f0405f; }
+.ping-bar-segment.excellent  { background: #39FF14; }  /* verde neón  · ping <= 30 ms */
+.ping-bar-segment.good       { background: #00C853; }  /* verde       · 31-60 ms */
+.ping-bar-segment.acceptable { background: #F2CC60; }  /* amarillo    · 61-150 ms */
+.ping-bar-segment.bad        { background: #DA3633; }  /* rojo        · 151-250 ms */
+.ping-bar-segment.terrible   { background: #000000; }  /* negro       · > 250 ms */
 .ping-arrow {
   position: absolute; top: -4px; left: 2%;
   transform: translateX(-50%);
