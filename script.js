@@ -50,6 +50,10 @@ function render(data) {
 
   const server = data?.server;
 
+  // La hora de última actualización es del caché de estado (Node-RED),
+  // se refresca aunque el server MC esté offline.
+  renderLastUpdate(data?.lastUpdate);
+
   if (!server || !server.online) {
     setOffline();
     return;
@@ -60,7 +64,6 @@ function render(data) {
   renderIcon(server);
   renderPlayers(server.players);
   renderMOTD(server.motd);
-  renderLastUpdate(data.lastUpdate);
 }
 
 // ----------------------------------------------------
